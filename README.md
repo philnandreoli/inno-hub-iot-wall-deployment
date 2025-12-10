@@ -23,7 +23,7 @@ inno-hub-iot-wall-deployment/
     ├── step4-install-k3s-on-vm.sh
     ├── step5-iot-operations-deployment.sh
     ├── step6-beckhoff-controller-deployment.sh
-    └── step6-leuze-controller-deployment.sh
+    └── step7-leuze-controller-deployment.sh
 ```
 
 ## 🔄 Version Comparison
@@ -198,7 +198,7 @@ cd v2
   --data-center "CHI" --country "US"
 
 # Step 7: Configure Leuze controller (optional)
-./step6-leuze-controller-deployment.sh \
+./step7-leuze-controller-deployment.sh \
   --service-principal-id "..." --service-principal-secret "..." \
   --subscription-id "..." --tenant-id "..." --location "eastus2" \
   --data-center "CHI" --country "US"
