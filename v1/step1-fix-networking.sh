@@ -7,11 +7,52 @@ export RESET='\e[0m'
 # BE AWARE: WHEN YOU RUN THIS SCRIPT, IT WILL KICK YOUR CURRENT SSH SESSION OUT DUE TO NETWORK RECONFIGURATION
 # YOU MAY GET A NEW IP ADDRESS ALL TOGETHER
 
+# Usage function
+usage() {
+    cat <<EOF
+${YELLOW}Usage: $0 --it-mac <IT_NETWORK_MAC_ADDRESS> --ot-mac <OT_NETWORK_MAC_ADDRESS>${RESET}
 
-# You wil need to get this from the network adapter settings of the Ubuntu Server VM.
-# You can run `ifconfig -a` or `ip link show` to see the MAC addresses of the network interfaces.
-export IT_NETWORK_MAC_ADDRESS=""
-export OT_NETWORK_MAC_ADDRESS=""
+${GREEN}Required Arguments:${RESET}
+  --it-mac    : MAC address for IT network interface (eth1)
+  --ot-mac    : MAC address for OT network interface (eth2)
+
+${GREEN}Example:${RESET}
+  $0 --it-mac 00:15:5d:01:23:45 --ot-mac 00:15:5d:01:23:46
+
+${YELLOW}Note: You can run 'ifconfig -a' or 'ip link show' to see the MAC addresses of the network interfaces.${RESET}
+EOF
+    exit 1
+}
+
+# Parse named arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --it-mac)
+            IT_NETWORK_MAC_ADDRESS="$2"
+            shift 2
+            ;;
+        --ot-mac)
+            OT_NETWORK_MAC_ADDRESS="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            ;;
+        *)
+            echo -e "${RED}Error: Unknown argument: $1${RESET}"
+            usage
+            ;;
+    esac
+done
+
+# Validate required arguments
+if [ -z "${IT_NETWORK_MAC_ADDRESS}" ] || [ -z "${OT_NETWORK_MAC_ADDRESS}" ]; then
+    echo -e "${RED}Error: Missing required arguments${RESET}"
+    usage
+fi
+
+export IT_NETWORK_MAC_ADDRESS
+export OT_NETWORK_MAC_ADDRESS
 
 
 echo -e "${GREEN}======================================================================================================"
