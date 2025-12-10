@@ -151,18 +151,19 @@ export INSTALL_K3S_VERSION="v1.34.1+k3s1"  # k3s version
 
 **⚠️ WARNING:** This script will reconfigure your network and will disconnect your SSH session.
 
+**Usage:**
+```bash
+./step1-fix-networking.sh --it-mac <IT_NETWORK_MAC_ADDRESS> --ot-mac <OT_NETWORK_MAC_ADDRESS>
+```
+
 **Example:**
 ```bash
 # First, find your MAC addresses
 ip link show
 
-# Configure the script
-export IT_NETWORK_MAC_ADDRESS="aa:bb:cc:dd:ee:ff"
-export OT_NETWORK_MAC_ADDRESS="11:22:33:44:55:66"
-
-# Run the script
+# Run the script with MAC addresses as arguments
 chmod +x step1-fix-networking.sh
-./step1-fix-networking.sh
+./step1-fix-networking.sh --it-mac "aa:bb:cc:dd:ee:ff" --ot-mac "11:22:33:44:55:66"
 ```
 
 **After Running:**
@@ -197,27 +198,64 @@ chmod +x step1-fix-networking.sh
 
 **Run on:** Ubuntu host (directly)
 
-**Example:**
+**Usage:**
 ```bash
-# Configure all environment variables
-export SERVICE_PRINCIPAL_ID="..."
-export SERVICE_PRINCIPAL_CLIENT_SECRET="..."
-export SUBSCRIPTION_ID="..."
-export TENANT_ID="..."
-export RESOURCE_GROUP="EXP-MFG-AIO-RG"
-export LOCATION="eastus2"
-export DATA_CENTER="CHI"
-export CITY="Chicago"
-export STATE_REGION="IL"
-export COUNTRY="US"
-
-# Optional: specify k3s version
-export INSTALL_K3S_VERSION="v1.34.1+k3s1"
-
-# Run the script
-chmod +x step2-iot-operations-onboarding.sh
-./step2-iot-operations-onboarding.sh
+./step2-iot-operations-onboarding.sh \
+  --sp-id <SERVICE_PRINCIPAL_ID> \
+  --sp-secret <SERVICE_PRINCIPAL_CLIENT_SECRET> \
+  --subscription-id <SUBSCRIPTION_ID> \
+  --tenant-id <TENANT_ID> \
+  --location <LOCATION> \
+  --data-center <DATA_CENTER> \
+  --city <CITY> \
+  --state-region <STATE_REGION> \
+  --country <COUNTRY>
 ```
+
+**Example (AMERICAS - Chicago):**
+```bash
+chmod +x step2-iot-operations-onboarding.sh
+./step2-iot-operations-onboarding.sh \
+  --sp-id "12345678-1234-1234-1234-123456789abc" \
+  --sp-secret "your-service-principal-secret" \
+  --subscription-id "12345678-1234-1234-1234-123456789abc" \
+  --tenant-id "12345678-1234-1234-1234-123456789abc" \
+  --location "eastus2" \
+  --data-center "CHI" \
+  --city "Chicago" \
+  --state-region "IL" \
+  --country "US"
+```
+
+**Example (EMEA - Amsterdam):**
+```bash
+./step2-iot-operations-onboarding.sh \
+  --sp-id "12345678-1234-1234-1234-123456789abc" \
+  --sp-secret "your-service-principal-secret" \
+  --subscription-id "12345678-1234-1234-1234-123456789abc" \
+  --tenant-id "12345678-1234-1234-1234-123456789abc" \
+  --location "northeurope" \
+  --data-center "AMS" \
+  --city "Amsterdam" \
+  --state-region "NH" \
+  --country "NL"
+```
+
+**Example (APAC - Singapore):**
+```bash
+./step2-iot-operations-onboarding.sh \
+  --sp-id "12345678-1234-1234-1234-123456789abc" \
+  --sp-secret "your-service-principal-secret" \
+  --subscription-id "12345678-1234-1234-1234-123456789abc" \
+  --tenant-id "12345678-1234-1234-1234-123456789abc" \
+  --location "southeastasia" \
+  --data-center "SIN" \
+  --city "Singapore" \
+  --state-region "SG" \
+  --country "SG"
+```
+
+**Note:** Resource group will be automatically created with naming convention: `EXP-MFG-AIO-${DATA_CENTER}-${COUNTRY}-RG`
 
 **Duration:** 15-20 minutes
 
@@ -247,13 +285,32 @@ chmod +x step2-iot-operations-onboarding.sh
 
 **Run on:** Ubuntu host (directly)
 
+**Usage:**
+```bash
+./step3-iot-operations-deployment.sh \
+  --sp-id <SERVICE_PRINCIPAL_ID> \
+  --sp-secret <SERVICE_PRINCIPAL_CLIENT_SECRET> \
+  --subscription-id <SUBSCRIPTION_ID> \
+  --tenant-id <TENANT_ID> \
+  --location <LOCATION> \
+  --data-center <DATA_CENTER> \
+  --country <COUNTRY>
+```
+
 **Example:**
 ```bash
-# Environment variables should already be set from step2
-# Run the script
 chmod +x step3-iot-operations-deployment.sh
-./step3-iot-operations-deployment.sh
+./step3-iot-operations-deployment.sh \
+  --sp-id "12345678-1234-1234-1234-123456789abc" \
+  --sp-secret "your-service-principal-secret" \
+  --subscription-id "12345678-1234-1234-1234-123456789abc" \
+  --tenant-id "12345678-1234-1234-1234-123456789abc" \
+  --location "eastus2" \
+  --data-center "CHI" \
+  --country "US"
 ```
+
+**Note:** Resource group will be automatically derived as `EXP-MFG-AIO-${DATA_CENTER}-${COUNTRY}-RG`
 
 **Verification:**
 - Check Azure Portal -> IoT Operations instance -> Assets
@@ -283,13 +340,32 @@ chmod +x step3-iot-operations-deployment.sh
 
 **Run on:** Ubuntu host (directly)
 
+**Usage:**
+```bash
+./step4-leuze-controller-deployment.sh \
+  --sp-id <SERVICE_PRINCIPAL_ID> \
+  --sp-secret <SERVICE_PRINCIPAL_CLIENT_SECRET> \
+  --subscription-id <SUBSCRIPTION_ID> \
+  --tenant-id <TENANT_ID> \
+  --location <LOCATION> \
+  --data-center <DATA_CENTER> \
+  --country <COUNTRY>
+```
+
 **Example:**
 ```bash
-# Environment variables should already be set
-# Run the script
 chmod +x step4-leuze-controller-deployment.sh
-./step4-leuze-controller-deployment.sh
+./step4-leuze-controller-deployment.sh \
+  --sp-id "12345678-1234-1234-1234-123456789abc" \
+  --sp-secret "your-service-principal-secret" \
+  --subscription-id "12345678-1234-1234-1234-123456789abc" \
+  --tenant-id "12345678-1234-1234-1234-123456789abc" \
+  --location "eastus2" \
+  --data-center "CHI" \
+  --country "US"
 ```
+
+**Note:** Resource group will be automatically derived as `EXP-MFG-AIO-${DATA_CENTER}-${COUNTRY}-RG`
 
 **Verification:**
 - Check Azure Portal -> IoT Operations instance -> Assets

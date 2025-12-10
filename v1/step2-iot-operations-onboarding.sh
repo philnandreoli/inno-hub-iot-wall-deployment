@@ -4,44 +4,114 @@ export YELLOW='\e[33m'
 export GREEN='\e[32m'
 export RESET='\e[0m'
 
-# In the Vault Explorer in the MTC SHARED Vault, locate the secret named IoT-Wall-V2
-# Get the following values from the secret:
-#     SERVICE_PRINCIPAL_ID
-#     SERVICE_PRINCIPAL_CLIENT_SECRET
-#     SUBSCRIPTION_ID
-#     TENANT_ID
-#
-# Set the following environment variables based on what region you are in:
-#     AMERICAS
-#         RESOURCE_GROUP="EXP-MFG-AIO-RG"
-#         LOCATION="eastus2"
-#     EMEA
-#         RESOURCE_GROUP="EXP-MFG-AIO-EMEA-RG"
-#         LOCATION="northeurope"
-#     APAC
-#         RESOURCE_GROUP="EXP-MFG-AIO-AP-RG"
-#         LOCATION="southeastasia"
-#
-#
-# Set the additional environmental variables based on your Innovation Hub Location:
-#     DATA_CENTER="CHI"            # e.g., CHI for Chicago, STL for St. Louis, AMS for Amsterdam, etc 
-#     CITY="Chicago"              # e.g., Chicago, St. Louis, Amsterdam, etc
-#     STATE_REGION="IL"           # e.g., IL for Illinois, MO for Missouri  
-#     COUNTRY="US"                # e.g., US for United States, NL for Netherlands, etc It should be the 2-letter country code.
-#
-export SERVICE_PRINCIPAL_ID="";
-export SERVICE_PRINCIPAL_CLIENT_SECRET="";
-export SUBSCRIPTION_ID="";
-export RESOURCE_GROUP="";
-export TENANT_ID="";
-export LOCATION="eastus2";
-export AUTH_TYPE="principal";
-export CLOUD="AzureCloud";
-export DATA_CENTER="CHI"
-export CITY="Chicago"
-export STATE_REGION="IL"
-export COUNTRY="US"
+# Usage function
+usage() {
+    cat <<EOF
+${YELLOW}Usage: $0 --sp-id <ID> --sp-secret <SECRET> --subscription-id <ID> --tenant-id <ID> --location <LOC> --data-center <DC> --city <CITY> --state-region <STATE> --country <COUNTRY>${RESET}
+
+${GREEN}Required Arguments:${RESET}
+  --sp-id             : The Service Principal ID from the IoT-Wall-V2 secret in the MTC SHARED Vault
+  --sp-secret         : The Service Principal Client Secret from the vault
+  --subscription-id   : The Azure Subscription ID
+  --tenant-id         : The Azure Tenant ID
+  --location          : Azure Location (e.g., eastus2 for AMERICAS, northeurope for EMEA, southeastasia for APAC)
+  --data-center       : Data Center Code (e.g., CHI for Chicago, STL for St. Louis, AMS for Amsterdam)
+  --city              : City name (e.g., Chicago, St. Louis, Amsterdam)
+  --state-region      : State or Region code (e.g., IL for Illinois, MO for Missouri)
+  --country           : Two-letter country code (e.g., US, NL)
+
+${YELLOW}Note: Resource group will be auto-created with naming convention: EXP-MFG-AIO-\${DATA_CENTER}-\${COUNTRY}-RG${RESET}
+
+${GREEN}Example for AMERICAS (Chicago):${RESET}
+  $0 --sp-id "sp-id-here" --sp-secret "sp-secret-here" --subscription-id "sub-id-here" --tenant-id "tenant-id-here" \\
+     --location "eastus2" --data-center "CHI" --city "Chicago" --state-region "IL" --country "US"
+
+${GREEN}Example for EMEA (Amsterdam):${RESET}
+  $0 --sp-id "sp-id-here" --sp-secret "sp-secret-here" --subscription-id "sub-id-here" --tenant-id "tenant-id-here" \\
+     --location "northeurope" --data-center "AMS" --city "Amsterdam" --state-region "NH" --country "NL"
+
+${GREEN}Example for APAC (Singapore):${RESET}
+  $0 --sp-id "sp-id-here" --sp-secret "sp-secret-here" --subscription-id "sub-id-here" --tenant-id "tenant-id-here" \\
+     --location "southeastasia" --data-center "SIN" --city "Singapore" --state-region "SG" --country "SG"
+EOF
+    exit 1
+}
+
+# Parse named arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --sp-id)
+            SERVICE_PRINCIPAL_ID="$2"
+            shift 2
+            ;;
+        --sp-secret)
+            SERVICE_PRINCIPAL_CLIENT_SECRET="$2"
+            shift 2
+            ;;
+        --subscription-id)
+            SUBSCRIPTION_ID="$2"
+            shift 2
+            ;;
+        --tenant-id)
+            TENANT_ID="$2"
+            shift 2
+            ;;
+        --location)
+            LOCATION="$2"
+            shift 2
+            ;;
+        --data-center)
+            DATA_CENTER="$2"
+            shift 2
+            ;;
+        --city)
+            CITY="$2"
+            shift 2
+            ;;
+        --state-region)
+            STATE_REGION="$2"
+            shift 2
+            ;;
+        --country)
+            COUNTRY="$2"
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            ;;
+        *)
+            echo -e "${RED}Error: Unknown argument: $1${RESET}"
+            usage
+            ;;
+    esac
+done
+
+# Validate required arguments
+if [ -z "${SERVICE_PRINCIPAL_ID}" ] || [ -z "${SERVICE_PRINCIPAL_CLIENT_SECRET}" ] || [ -z "${SUBSCRIPTION_ID}" ] || \
+   [ -z "${TENANT_ID}" ] || [ -z "${LOCATION}" ] || \
+   [ -z "${DATA_CENTER}" ] || [ -z "${CITY}" ] || [ -z "${STATE_REGION}" ] || [ -z "${COUNTRY}" ]; then
+    echo -e "${RED}Error: Missing required arguments${RESET}"
+    usage
+fi
+
+export SERVICE_PRINCIPAL_ID
+export SERVICE_PRINCIPAL_CLIENT_SECRET
+export SUBSCRIPTION_ID
+export TENANT_ID
+export LOCATION
+export DATA_CENTER
+export CITY
+export STATE_REGION
+export COUNTRY
+
+# Dynamically create resource group name based on data center and country
+export RESOURCE_GROUP="EXP-MFG-AIO-${DATA_CENTER}-${COUNTRY}-RG"
+
+# Set constant values
+export AUTH_TYPE="principal"
+export CLOUD="AzureCloud"
 export INSTALL_K3S_VERSION="v1.34.1+k3s1"
+export IOT_ID="a4e6246e-0a1b-48c6-8fd6-9b0631d78d05"
 
 # Set the SERVICE_TAG to the hostname of the machine.   This is what will be registered in Azure Arc
 export SERVICE_TAG=$(hostname -s)
@@ -54,8 +124,6 @@ export REGISTRY_NAME="${DATA_CENTER}-${SERVICE_TAG}-registry}"
 export REGISTRY_NAMESPACE="${DATA_CENTER}-${SERVICE_TAG}-regnamespace"
 export NE_IOT_INSTANCE="${DATA_CENTER}-${SERVICE_TAG}-aio-instance"
 export NE_IOT_NAMESPACE="${DATA_CENTER}-${SERVICE_TAG}-aio-namespace"
-# The IOT_ID is a GUID that is unique to our IoT Ops Setup in our subscription
-export IOT_ID="a4e6246e-0a1b-48c6-8fd6-9b0631d78d05"
 export USER_ASSIGNED_MANAGED_IDENTITY="${DATA_CENTER}-${SERVICE_TAG}-uami"
 
 # Convert to lowercase
@@ -118,6 +186,34 @@ echo "$output";
 bash "$LINUX_INSTALL_SCRIPT";
 sleep 5;
 
+echo -e "${GREEN}======================================================================================================"
+echo -e " Step 2.2 Logging into Azure using Service Principal"
+echo -e "======================================================================================================${RESET}"
+az login --service-principal -u "${SERVICE_PRINCIPAL_ID}" -p="${SERVICE_PRINCIPAL_CLIENT_SECRET}" --tenant "${TENANT_ID}"
+az account set --subscription $SUBSCRIPTION_ID
+
+# Check if resource group exists
+EXISTING_RG=$(az group show --name "${RESOURCE_GROUP}" --query "id" -o tsv 2>/dev/null || echo "")
+
+if [ -z "${EXISTING_RG}" ]; then
+    echo -e "${YELLOW}Creating resource group: ${RESOURCE_GROUP}${RESET}"
+    az group create \
+        --name "${RESOURCE_GROUP}" \
+        --location "${LOCATION}" \
+        --tags Environment=MTCDemo CreatedBy=NativeEdge Industry=MFG Partner=NA RGMonthlyCost=1000 Owner=philand@onemtcnet CreatedDate=$(date +%Y-%m-%d) LifeCycleCheck=$(date +%Y-%m-%d)
+    
+
+    az role assignment create --assignee "e47cc756-add5-4ae8-b684-10f6c82ee08e" --role "Contributor" --scope "/subscriptions/${SUBSCRIPTION_ID}/resourcegroups/${RESOURCE_GROUP}"
+
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Failed to create resource group${RESET}"
+        exit 1
+    fi
+    echo -e "${GREEN}Resource group created successfully${RESET}"
+else
+    echo -e "${YELLOW}Resource group already exists: ${RESOURCE_GROUP}${RESET}"
+fi
+
 # Run connect command
 sudo azcmagent connect --service-principal-id $SERVICE_PRINCIPAL_ID --service-principal-secret $SERVICE_PRINCIPAL_CLIENT_SECRET --resource-group "$RESOURCE_GROUP" --tenant-id "$TENANT_ID" --location "$LOCATION" --subscription-id "$SUBSCRIPTION_ID" --cloud "$CLOUD" --tags "Datacenter=${DATA_CENTER},City=${CITY},StateOrDistrict=${STATE_REGION},CountryOrRegion=${COUNTRY},ServiceTag=${SERVICE_TAG},ArcSQLServerExtensionDeployment=Disabled";
 
@@ -126,11 +222,7 @@ echo -e "Step 2.1 Installing net-tools and AAD SSH Login Extension"
 echo -e "=======================================================================================================${RESET}"
 sudo apt install net-tools aadsshlogin -y
 
-echo -e "${GREEN}======================================================================================================"
-echo -e " Step 2.2 Logging into Azure using Service Principal"
-echo -e "======================================================================================================${RESET}"
-az login --service-principal -u "${SERVICE_PRINCIPAL_ID}" -p="${SERVICE_PRINCIPAL_CLIENT_SECRET}" --tenant "${TENANT_ID}"
-az account set --subscription $SUBSCRIPTION_ID
+
 
 echo -e "${GREEN}======================================================================================================"
 echo -e " Step 2.3........Create the default connectivity endpoint"

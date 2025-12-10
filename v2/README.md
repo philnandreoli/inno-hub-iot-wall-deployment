@@ -155,6 +155,11 @@ export VM_DISK_GB="100"         # Default: 100 GB
 
 **⚠️ WARNING:** This script will reconfigure your network and will disconnect your SSH session. You may receive a new IP address.
 
+**Usage:**
+```bash
+./step0-configure-host-networking.sh --it-mac <IT_NETWORK_MAC_ADDRESS> --ot-mac <OT_NETWORK_MAC_ADDRESS>
+```
+
 **Example:**
 ```bash
 # First, find your MAC addresses
@@ -162,13 +167,9 @@ ip link show
 # or
 ifconfig -a
 
-# Configure the script
-export IT_NETWORK_MAC_ADDRESS="aa:bb:cc:dd:ee:ff"
-export OT_NETWORK_MAC_ADDRESS="11:22:33:44:55:66"
-
-# Run the script
+# Run the script with MAC addresses as arguments
 chmod +x step0-configure-host-networking.sh
-./step0-configure-host-networking.sh
+./step0-configure-host-networking.sh --it-mac "aa:bb:cc:dd:ee:ff" --ot-mac "11:22:33:44:55:66"
 ```
 
 **After Running:**
@@ -192,17 +193,50 @@ chmod +x step0-configure-host-networking.sh
 
 **Run on:** Ubuntu host (directly)
 
-**Example:**
+**Usage:**
 ```bash
-# Configure environment variables (see above)
-export SERVICE_PRINCIPAL_ID="..."
-export SERVICE_PRINCIPAL_CLIENT_SECRET="..."
-# ... (configure all required variables)
-
-# Run the script
-chmod +x step1-arc-enable-host.sh
-./step1-arc-enable-host.sh
+./step1-arc-enable-host.sh \
+  --service-principal-id <SERVICE_PRINCIPAL_ID> \
+  --service-principal-secret <SERVICE_PRINCIPAL_CLIENT_SECRET> \
+  --subscription-id <SUBSCRIPTION_ID> \
+  --tenant-id <TENANT_ID> \
+  --location <LOCATION> \
+  --data-center <DATA_CENTER> \
+  --city <CITY> \
+  --state-region <STATE_REGION> \
+  --country <COUNTRY>
 ```
+
+**Example (AMERICAS - Chicago):**
+```bash
+chmod +x step1-arc-enable-host.sh
+./step1-arc-enable-host.sh \
+  --service-principal-id "12345678-1234-1234-1234-123456789abc" \
+  --service-principal-secret "your-service-principal-secret" \
+  --subscription-id "12345678-1234-1234-1234-123456789abc" \
+  --tenant-id "12345678-1234-1234-1234-123456789abc" \
+  --location "eastus2" \
+  --data-center "CHI" \
+  --city "Chicago" \
+  --state-region "IL" \
+  --country "US"
+```
+
+**Example (EMEA - Amsterdam):**
+```bash
+./step1-arc-enable-host.sh \
+  --service-principal-id "12345678-1234-1234-1234-123456789abc" \
+  --service-principal-secret "your-service-principal-secret" \
+  --subscription-id "12345678-1234-1234-1234-123456789abc" \
+  --tenant-id "12345678-1234-1234-1234-123456789abc" \
+  --location "northeurope" \
+  --data-center "AMS" \
+  --city "Amsterdam" \
+  --state-region "NH" \
+  --country "NL"
+```
+
+**Note:** Resource group will be automatically created with naming convention: `EXP-MFG-AIO-${DATA_CENTER}-${COUNTRY}-RG`
 
 **Verification:**
 - Check Azure Portal for Arc-enabled server in your resource group
@@ -227,22 +261,53 @@ chmod +x step1-arc-enable-host.sh
 
 **Run on:** Ubuntu host (directly)
 
+**Usage:**
+```bash
+./step2-create-vm.sh \
+  --service-principal-id <SERVICE_PRINCIPAL_ID> \
+  --service-principal-secret <SERVICE_PRINCIPAL_CLIENT_SECRET> \
+  --subscription-id <SUBSCRIPTION_ID> \
+  --tenant-id <TENANT_ID> \
+  --keyvault-name <KEYVAULT_NAME> \
+  --ssh-key-secret <SSH_KEY_SECRET_NAME> \
+  --ssh-pub-key-secret <SSH_PUB_KEY_SECRET_NAME> \
+  --it-interface <IT_NETWORK_INTERFACE> \
+  --ot-interface <OT_NETWORK_INTERFACE> \
+  [--vm-cpus <VM_CPUS>] \
+  [--vm-ram-mb <VM_RAM_MB>] \
+  [--vm-disk-gb <VM_DISK_GB>]
+```
+
 **Example:**
 ```bash
-# Configure environment variables
-export IT_NETWORK_INTERFACE="eth1"
-export OT_NETWORK_INTERFACE="eth2"
-export KEYVAULT_NAME="my-keyvault"
-export SSH_KEY_SECRET_NAME="vm-ssh-private-key"
-export SSH_PUB_KEY_SECRET_NAME="vm-ssh-public-key"
-# VM resources (optional)
-export VM_CPUS="4"
-export VM_RAM_MB="8192"
-export VM_DISK_GB="100"
-
-# Run the script
 chmod +x step2-create-vm.sh
-./step2-create-vm.sh
+./step2-create-vm.sh \
+  --service-principal-id "12345678-1234-1234-1234-123456789abc" \
+  --service-principal-secret "your-service-principal-secret" \
+  --subscription-id "12345678-1234-1234-1234-123456789abc" \
+  --tenant-id "12345678-1234-1234-1234-123456789abc" \
+  --keyvault-name "my-keyvault" \
+  --ssh-key-secret "vm-ssh-private-key" \
+  --ssh-pub-key-secret "vm-ssh-public-key" \
+  --it-interface "eth1" \
+  --ot-interface "eth2"
+```
+
+**Example with custom VM resources:**
+```bash
+./step2-create-vm.sh \
+  --service-principal-id "12345678-1234-1234-1234-123456789abc" \
+  --service-principal-secret "your-service-principal-secret" \
+  --subscription-id "12345678-1234-1234-1234-123456789abc" \
+  --tenant-id "12345678-1234-1234-1234-123456789abc" \
+  --keyvault-name "my-keyvault" \
+  --ssh-key-secret "vm-ssh-private-key" \
+  --ssh-pub-key-secret "vm-ssh-public-key" \
+  --it-interface "eth1" \
+  --ot-interface "eth2" \
+  --vm-cpus 8 \
+  --vm-ram-mb 16384 \
+  --vm-disk-gb 200
 ```
 
 **Verification:**
@@ -267,13 +332,36 @@ chmod +x step2-create-vm.sh
 
 **Run on:** Ubuntu host (connects to VM via SSH)
 
+**Usage:**
+```bash
+./step3-arc-enable-vm.sh \
+  --service-principal-id <SERVICE_PRINCIPAL_ID> \
+  --service-principal-secret <SERVICE_PRINCIPAL_CLIENT_SECRET> \
+  --subscription-id <SUBSCRIPTION_ID> \
+  --tenant-id <TENANT_ID> \
+  --location <LOCATION> \
+  --data-center <DATA_CENTER> \
+  --city <CITY> \
+  --state-region <STATE_REGION> \
+  --country <COUNTRY>
+```
+
 **Example:**
 ```bash
-# Environment variables should already be set
-# Run the script
 chmod +x step3-arc-enable-vm.sh
-./step3-arc-enable-vm.sh
+./step3-arc-enable-vm.sh \
+  --service-principal-id "12345678-1234-1234-1234-123456789abc" \
+  --service-principal-secret "your-service-principal-secret" \
+  --subscription-id "12345678-1234-1234-1234-123456789abc" \
+  --tenant-id "12345678-1234-1234-1234-123456789abc" \
+  --location "eastus2" \
+  --data-center "CHI" \
+  --city "Chicago" \
+  --state-region "IL" \
+  --country "US"
 ```
+
+**Note:** Resource group will be automatically derived as `EXP-MFG-AIO-${DATA_CENTER}-${COUNTRY}-RG`
 
 **Verification:**
 - Check Azure Portal for second Arc-enabled server (name: `<hostname>-vm`)
@@ -298,15 +386,32 @@ chmod +x step3-arc-enable-vm.sh
 
 **Run on:** Ubuntu host (connects to VM via SSH)
 
+**Usage:**
+```bash
+./step4-install-k3s-on-vm.sh \
+  --service-principal-id <SERVICE_PRINCIPAL_ID> \
+  --service-principal-secret <SERVICE_PRINCIPAL_CLIENT_SECRET> \
+  --subscription-id <SUBSCRIPTION_ID> \
+  --tenant-id <TENANT_ID> \
+  --location <LOCATION> \
+  --data-center <DATA_CENTER> \
+  --country <COUNTRY>
+```
+
 **Example:**
 ```bash
-# Optional: specify k3s version
-export INSTALL_K3S_VERSION="v1.34.1+k3s1"
-
-# Run the script
 chmod +x step4-install-k3s-on-vm.sh
-./step4-install-k3s-on-vm.sh
+./step4-install-k3s-on-vm.sh \
+  --service-principal-id "12345678-1234-1234-1234-123456789abc" \
+  --service-principal-secret "your-service-principal-secret" \
+  --subscription-id "12345678-1234-1234-1234-123456789abc" \
+  --tenant-id "12345678-1234-1234-1234-123456789abc" \
+  --location "eastus2" \
+  --data-center "CHI" \
+  --country "US"
 ```
+
+**Note:** Resource group will be automatically derived as `EXP-MFG-AIO-${DATA_CENTER}-${COUNTRY}-RG`
 
 **Verification:**
 - Check Azure Portal for Arc-enabled Kubernetes cluster (name: `<datacenter>-<hostname>-vm-k3s`)
@@ -328,15 +433,34 @@ chmod +x step4-install-k3s-on-vm.sh
 
 **Run on:** Ubuntu host (manages Azure resources and connects to VM)
 
-**Example:**
+**Usage:**
 ```bash
-# Environment variables should already be set
-# Run the script
-chmod +x step5-iot-operations-deployment.sh
-./step5-iot-operations-deployment.sh
+./step5-iot-operations-deployment.sh \
+  --service-principal-id <SERVICE_PRINCIPAL_ID> \
+  --service-principal-secret <SERVICE_PRINCIPAL_CLIENT_SECRET> \
+  --subscription-id <SUBSCRIPTION_ID> \
+  --tenant-id <TENANT_ID> \
+  --location <LOCATION> \
+  --data-center <DATA_CENTER> \
+  --country <COUNTRY>
 ```
 
-**Note:** This step takes 10-15 minutes to complete.
+**Example:**
+```bash
+chmod +x step5-iot-operations-deployment.sh
+./step5-iot-operations-deployment.sh \
+  --service-principal-id "12345678-1234-1234-1234-123456789abc" \
+  --service-principal-secret "your-service-principal-secret" \
+  --subscription-id "12345678-1234-1234-1234-123456789abc" \
+  --tenant-id "12345678-1234-1234-1234-123456789abc" \
+  --location "eastus2" \
+  --data-center "CHI" \
+  --country "US"
+```
+
+**Note:** 
+- Resource group will be automatically derived as `EXP-MFG-AIO-${DATA_CENTER}-${COUNTRY}-RG`
+- This step takes 10-15 minutes to complete
 
 **Verification:**
 - Check Azure Portal for IoT Operations instance
@@ -363,13 +487,32 @@ chmod +x step5-iot-operations-deployment.sh
 
 **Run on:** Ubuntu host (connects to VM via SSH)
 
+**Usage:**
+```bash
+./step6-beckhoff-controller-deployment.sh \
+  --service-principal-id <SERVICE_PRINCIPAL_ID> \
+  --service-principal-secret <SERVICE_PRINCIPAL_CLIENT_SECRET> \
+  --subscription-id <SUBSCRIPTION_ID> \
+  --tenant-id <TENANT_ID> \
+  --location <LOCATION> \
+  --data-center <DATA_CENTER> \
+  --country <COUNTRY>
+```
+
 **Example:**
 ```bash
-# Environment variables should already be set
-# Run the script
 chmod +x step6-beckhoff-controller-deployment.sh
-./step6-beckhoff-controller-deployment.sh
+./step6-beckhoff-controller-deployment.sh \
+  --service-principal-id "12345678-1234-1234-1234-123456789abc" \
+  --service-principal-secret "your-service-principal-secret" \
+  --subscription-id "12345678-1234-1234-1234-123456789abc" \
+  --tenant-id "12345678-1234-1234-1234-123456789abc" \
+  --location "eastus2" \
+  --data-center "CHI" \
+  --country "US"
 ```
+
+**Note:** Resource group will be automatically derived as `EXP-MFG-AIO-${DATA_CENTER}-${COUNTRY}-RG`
 
 **Verification:**
 - Check Azure Portal -> IoT Operations instance -> Assets
@@ -399,13 +542,32 @@ chmod +x step6-beckhoff-controller-deployment.sh
 
 **Run on:** Ubuntu host (connects to VM via SSH)
 
+**Usage:**
+```bash
+./step7-leuze-controller-deployment.sh \
+  --service-principal-id <SERVICE_PRINCIPAL_ID> \
+  --service-principal-secret <SERVICE_PRINCIPAL_CLIENT_SECRET> \
+  --subscription-id <SUBSCRIPTION_ID> \
+  --tenant-id <TENANT_ID> \
+  --location <LOCATION> \
+  --data-center <DATA_CENTER> \
+  --country <COUNTRY>
+```
+
 **Example:**
 ```bash
-# Environment variables should already be set
-# Run the script
 chmod +x step7-leuze-controller-deployment.sh
-./step7-leuze-controller-deployment.sh
+./step7-leuze-controller-deployment.sh \
+  --service-principal-id "12345678-1234-1234-1234-123456789abc" \
+  --service-principal-secret "your-service-principal-secret" \
+  --subscription-id "12345678-1234-1234-1234-123456789abc" \
+  --tenant-id "12345678-1234-1234-1234-123456789abc" \
+  --location "eastus2" \
+  --data-center "CHI" \
+  --country "US"
 ```
+
+**Note:** Resource group will be automatically derived as `EXP-MFG-AIO-${DATA_CENTER}-${COUNTRY}-RG`
 
 **Verification:**
 - Check Azure Portal -> IoT Operations instance -> Assets
