@@ -310,6 +310,18 @@ az iot ops ns asset opcua datapoint add \
     exit 1
 }
 
+# BlinkPattern
+az iot ops ns asset opcua datapoint add \
+    --asset beckhoff-controller \
+    --data-source "ns=4;s=MAIN.nBlinkPattern" \
+    --dataset beckhoff-controller-ds \
+    --instance "${NE_IOT_INSTANCE}" \
+    --name BlinkPattern \
+    --resource-group "${RESOURCE_GROUP}" || {
+    echo -e "${RED}Failed to create datapoint: BlinkPattern${RESET}"
+    exit 1
+}
+
 echo -e "${GREEN}======================================================================================================"
 echo -e "Creating Dataflow Endpoint for Beckhoff Controller"
 echo -e "======================================================================================================${RESET}"
