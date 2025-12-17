@@ -157,7 +157,7 @@ export VM_DISK_GB="100"         # Default: 100 GB
 
 **Usage:**
 ```bash
-./step0-configure-host-networking.sh --it-mac <IT_NETWORK_MAC_ADDRESS> --ot-mac <OT_NETWORK_MAC_ADDRESS>
+./step0-configure-host-networking.sh --it-network-mac <IT_NETWORK_MAC_ADDRESS> --ot-mac <OT_NETWORK_MAC_ADDRESS>
 ```
 
 **Example:**
@@ -169,7 +169,7 @@ ifconfig -a
 
 # Run the script with MAC addresses as arguments
 chmod +x step0-configure-host-networking.sh
-./step0-configure-host-networking.sh --it-mac "aa:bb:cc:dd:ee:ff" --ot-mac "11:22:33:44:55:66"
+./step0-configure-host-networking.sh --it-network-mac "aa:bb:cc:dd:ee:ff" --ot-network-mac "11:22:33:44:55:66"
 ```
 
 **After Running:**
@@ -789,6 +789,86 @@ export VM_CPUS="8"          # Increase CPU count
 export VM_RAM_MB="16384"    # 16 GB RAM
 export VM_DISK_GB="200"     # 200 GB disk
 ```
+
+## Uninstalling
+
+### Uninstall Script
+**Script:** `uninstall.sh`
+
+**Purpose:** Removes the VM and most Azure resources created during deployment. Designed to allow redeployment while keeping the host Arc-enabled.
+
+**What it does:**
+- Disconnects and removes Arc-enabled k3s cluster
+- Disconnects and removes VM from Azure Arc
+- Deletes Key Vault (soft delete, recoverable for 90 days)
+- Deletes Storage Account
+- Stops and deletes the VM on the host
+- Removes the VM disk from `/data`
+- Optionally removes network bridges
+
+**What it does NOT do:**
+- Delete the Azure Resource Group
+- Remove the host from Azure Arc
+- Delete Azure IoT Operations instance (must be deleted manually via Azure Portal)
+- Delete Schema Registry
+- Delete User Assigned Managed Identity
+
+**Usage Examples:**
+
+```bash
+# Basic uninstall (removes k3s cluster, VM, Key Vault, Storage Account)
+./uninstall.sh \
+  --service-principal-id "12345678-1234-1234-1234-123456789abc" \
+  --service-principal-secret "your-secret-here" \
+  --subscription-id "12345678-1234-1234-1234-123456789abc" \
+  --tenant-id "12345678-1234-1234-1234-123456789abc" \
+  --data-center "CHI" \
+  --country "US"
+
+# Uninstall with network cleanup
+./uninstall.sh \
+  --service-principal-id "12345678-1234-1234-1234-123456789abc" \
+  --service-principal-secret "your-secret-here" \
+  --subscription-id "12345678-1234-1234-1234-123456789abc" \
+  --tenant-id "12345678-1234-1234-1234-123456789abc" \
+  --data-center "CHI" \
+  --country "US" \
+  --delete-network-bridges
+
+# Local VM cleanup only (skip Azure Arc cleanup)
+./uninstall.sh \
+  --data-center "CHI" \
+  --country "US" \
+  --skip-azure-cleanup
+```
+
+**Available Options:**
+- `--delete-network-bridges`: Removes br-it and br-ot network bridges (default: keeps bridges)
+- `--skip-azure-cleanup`: Only delete local VM, skip all Azure resource cleanup
+
+**Warning:** The uninstall script will permanently delete the VM, its disk, and Azure resources. It will prompt for confirmation before proceeding.
+
+**Manual Cleanup Required:**
+After running the uninstall script, you may want to manually delete:
+
+**Via Azure Portal or CLI:**
+- Azure IoT Operations instance (if deployed)
+- Schema Registry (if created)
+- User Assigned Managed Identity
+- The entire Resource Group (if you want to start completely fresh)
+
+**To purge Key Vault permanently (removes soft-deleted vault):**
+```bash
+az keyvault purge --name "<datacenter>-<hostname>-vm-kv"
+```
+
+**To delete the entire resource group:**
+```bash
+az group delete --name "EXP-MFG-AIO-CHI-US-RG" --yes
+```
+
+**Redeployment After Uninstall:**
+After running the uninstall script, you can redeploy by starting from step 2 (create-vm.sh) since the host remains Arc-enabled. This makes it easy to test different configurations or recover from failed deployments.
 
 ## Support and Maintenance
 
