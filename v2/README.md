@@ -287,10 +287,11 @@ chmod +x step2-create-vm.sh
   --subscription-id "12345678-1234-1234-1234-123456789abc" \
   --tenant-id "12345678-1234-1234-1234-123456789abc" \
   --keyvault-name "my-keyvault" \
-  --ssh-key-secret "vm-ssh-private-key" \
-  --ssh-pub-key-secret "vm-ssh-public-key" \
+  --ssh-key-secret "VM-SSH-PRIVATE-KEY" \
+  --ssh-pub-key-secret "VM-SSH-PUBLIC-KEY" \
   --it-interface "eth1" \
-  --ot-interface "eth2"
+  --ot-interface "eth2" \
+  --vm-ram-gb 16
 ```
 
 **Example with custom VM resources:**
@@ -301,8 +302,8 @@ chmod +x step2-create-vm.sh
   --subscription-id "12345678-1234-1234-1234-123456789abc" \
   --tenant-id "12345678-1234-1234-1234-123456789abc" \
   --keyvault-name "my-keyvault" \
-  --ssh-key-secret "vm-ssh-private-key" \
-  --ssh-pub-key-secret "vm-ssh-public-key" \
+  --ssh-key-secret "VM-SSH-PRIVATE-KEY" \
+  --ssh-pub-key-secret "VM-SSH-PUBLIC-KEY" \
   --it-interface "eth1" \
   --ot-interface "eth2" \
   --vm-cpus 8 \
@@ -442,7 +443,9 @@ chmod +x step4-install-k3s-on-vm.sh
   --tenant-id <TENANT_ID> \
   --location <LOCATION> \
   --data-center <DATA_CENTER> \
-  --country <COUNTRY>
+  --country <COUNTRY> \
+  --city <CITY> \
+  --state-region <STATE_REGION>
 ```
 
 **Example:**
@@ -455,7 +458,9 @@ chmod +x step5-iot-operations-deployment.sh
   --tenant-id "12345678-1234-1234-1234-123456789abc" \
   --location "eastus2" \
   --data-center "CHI" \
-  --country "US"
+  --country "US" \
+  --city "Chicago" \
+  --state-region "IL" \
 ```
 
 **Note:** 
@@ -496,7 +501,9 @@ chmod +x step5-iot-operations-deployment.sh
   --tenant-id <TENANT_ID> \
   --location <LOCATION> \
   --data-center <DATA_CENTER> \
-  --country <COUNTRY>
+  --country <COUNTRY> \
+  --city <CITY> \
+  --state-region <STATE_REGION>
 ```
 
 **Example:**
@@ -509,7 +516,9 @@ chmod +x step6-beckhoff-controller-deployment.sh
   --tenant-id "12345678-1234-1234-1234-123456789abc" \
   --location "eastus2" \
   --data-center "CHI" \
-  --country "US"
+  --country "US" \
+  --city "Chicago" \
+  --state-region "IL"
 ```
 
 **Note:** Resource group will be automatically derived as `EXP-MFG-AIO-${DATA_CENTER}-${COUNTRY}-RG`
@@ -551,7 +560,9 @@ chmod +x step6-beckhoff-controller-deployment.sh
   --tenant-id <TENANT_ID> \
   --location <LOCATION> \
   --data-center <DATA_CENTER> \
-  --country <COUNTRY>
+  --country <COUNTRY> \
+  --city <CITY> \
+  --state-region <STATE_REGION>
 ```
 
 **Example:**
@@ -564,7 +575,9 @@ chmod +x step7-leuze-controller-deployment.sh
   --tenant-id "12345678-1234-1234-1234-123456789abc" \
   --location "eastus2" \
   --data-center "CHI" \
-  --country "US"
+  --country "US" \
+  --city "Chicago" \
+  --state-region "IL"
 ```
 
 **Note:** Resource group will be automatically derived as `EXP-MFG-AIO-${DATA_CENTER}-${COUNTRY}-RG`
