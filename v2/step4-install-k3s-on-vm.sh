@@ -23,7 +23,8 @@ export RESET='\e[0m'
 #     --tenant-id <tenant-id> \
 #     --resource-group <resource-group> \
 #     --location <location> \
-#     --data-center <datacenter>
+#     --data-center <datacenter> \
+#     --keyvault-name <keyvault-name>
 #
 # Example:
 #   ./step4-install-k3s-on-vm.sh \
@@ -33,7 +34,8 @@ export RESET='\e[0m'
 #     --tenant-id "12345678-1234-1234-1234-123456789abc" \
 #     --resource-group "EXP-MFG-AIO-RG" \
 #     --location "eastus2" \
-#     --data-center "CHI"
+#     --data-center "CHI" \
+#     --keyvault-name "my-keyvault"
 # ============================================================================
 
 # Function to display usage
@@ -48,6 +50,7 @@ usage() {
     echo "  --location LOCATION                Azure region (e.g., eastus2, northeurope)"
     echo "  --data-center CODE                 Datacenter code (e.g., CHI, STL, AMS)"
     echo "  --country CODE                     Country code (e.g., US, DE)"
+    echo "  --keyvault-name NAME               Azure Key Vault name (same as step2)"
     echo ""
     echo "Optional Options:"
     echo "  --ot-network-vm-ip IP              OT network IP for VM (default: 192.168.30.18)"
@@ -92,6 +95,10 @@ while [[ $# -gt 0 ]]; do
             ARG_DATA_CENTER="$2"
             shift 2
             ;;
+        --keyvault-name)
+            ARG_KEYVAULT_NAME="$2"
+            shift 2
+            ;;
         --ot-network-vm-ip)
             ARG_OT_NETWORK_VM_IP="$2"
             shift 2
@@ -126,6 +133,7 @@ export TENANT_ID="${ARG_TENANT_ID:-${TENANT_ID}}"
 export COUNTRY="${ARG_COUNTRY:-${COUNTRY}}"
 export LOCATION="${ARG_LOCATION:-${LOCATION:-eastus2}}"
 export DATA_CENTER="${ARG_DATA_CENTER:-${DATA_CENTER}}"
+export KEYVAULT_NAME="${ARG_KEYVAULT_NAME:-${KEYVAULT_NAME}}"
 
 # VM Configuration
 export HOST_NAME=$(hostname -s)
@@ -137,6 +145,9 @@ export SSH_KEY_PATH="${ARG_SSH_KEY_PATH:-${SSH_KEY_PATH:-$HOME/.ssh/vm_id_rsa}}"
 export INSTALL_K3S_VERSION="${ARG_K3S_VERSION:-${INSTALL_K3S_VERSION:-v1.34.1+k3s1}}"
 export CLUSTER_NAME="${DATA_CENTER}-${VM_NAME}-k3s"
 export IOT_ID="${ARG_IOT_ID:-${IOT_ID:-a4e6246e-0a1b-48c6-8fd6-9b0631d78d05}}"
+
+# K3s bearer token secret name (uppercase VM name)
+export K3S_BEARER_TOKEN_SECRET_NAME=$(echo "${VM_NAME}-K3S-BEARER-TOKEN" | tr '[:lower:]' '[:upper:]')
 
 # Convert cluster name to lowercase and replace underscores with hyphens
 CLUSTER_NAME=$(echo "${CLUSTER_NAME}" | tr '[:upper:]' '[:lower:]' | sed 's/_/-/g')
@@ -153,12 +164,14 @@ echo -e "${GREEN}Resource Group: ${RESOURCE_GROUP}${RESET}"
 echo -e "${GREEN}Location: ${LOCATION}${RESET}"
 echo -e "${GREEN}SSH Key Path: ${SSH_KEY_PATH}${RESET}"
 echo -e "${GREEN}IoT Custom Locations OID: ${IOT_ID}${RESET}"
+echo -e "${GREEN}Key Vault Name: ${KEYVAULT_NAME}${RESET}"
+echo -e "${GREEN}K3s Bearer Token Secret: ${K3S_BEARER_TOKEN_SECRET_NAME}${RESET}"
 echo ""
 
 # Validation
 if [ -z "$SERVICE_PRINCIPAL_ID" ] || [ -z "$SERVICE_PRINCIPAL_CLIENT_SECRET" ] || \
    [ -z "$SUBSCRIPTION_ID" ] || [ -z "$TENANT_ID" ] || [ -z "$COUNTRY" ] || \
-   [ -z "$DATA_CENTER" ]; then
+   [ -z "$DATA_CENTER" ] || [ -z "$KEYVAULT_NAME" ]; then
     echo -e "${RED}ERROR: Required parameters are missing.${RESET}"
     echo -e "${RED}Please provide all required arguments or set environment variables.${RESET}"
     echo ""
@@ -210,6 +223,8 @@ LOCATION="__LOCATION__"
 CLUSTER_NAME="__CLUSTER_NAME__"
 INSTALL_K3S_VERSION="__INSTALL_K3S_VERSION__"
 IOT_ID="__IOT_ID__"
+KEYVAULT_NAME="__KEYVAULT_NAME__"
+K3S_BEARER_TOKEN_SECRET_NAME="__K3S_BEARER_TOKEN_SECRET_NAME__"
 
 echo -e "${GREEN}======================================================================================================"
 echo -e "Installing k3s"
@@ -316,6 +331,34 @@ sleep 15
 kubectl get nodes
 
 echo -e "${GREEN}======================================================================================================"
+echo -e "Storing k3s Bearer Token in Azure Key Vault"
+echo -e "======================================================================================================${RESET}"
+
+# Extract the bearer token (password) from the k3s kubeconfig
+K3S_BEARER_TOKEN=$(sudo kubectl config view --kubeconfig /etc/rancher/k3s/k3s.yaml --raw -o jsonpath='{.users[0].user.password}')
+
+if [ -z "$K3S_BEARER_TOKEN" ]; then
+    echo -e "${RED}ERROR: Failed to extract k3s bearer token from kubeconfig${RESET}"
+    exit 1
+fi
+
+echo -e "${YELLOW}Bearer token extracted successfully (length: ${#K3S_BEARER_TOKEN} chars)${RESET}"
+
+# Store the bearer token in Azure Key Vault
+az keyvault secret set \
+    --vault-name "${KEYVAULT_NAME}" \
+    --name "${K3S_BEARER_TOKEN_SECRET_NAME}" \
+    --value "${K3S_BEARER_TOKEN}" \
+    --output none
+
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Failed to store k3s bearer token in Key Vault${RESET}"
+    exit 1
+fi
+
+echo -e "${GREEN}✓ k3s bearer token stored in Key Vault '${KEYVAULT_NAME}' as secret '${K3S_BEARER_TOKEN_SECRET_NAME}'${RESET}"
+
+echo -e "${GREEN}======================================================================================================"
 echo -e "k3s Installation and Arc Enablement Complete!"
 echo -e "======================================================================================================${RESET}"
 echo -e "${GREEN}Cluster Name: ${CLUSTER_NAME}${RESET}"
@@ -332,6 +375,8 @@ sed -i "s|__LOCATION__|${LOCATION}|g" /tmp/install-k3s-arc.sh
 sed -i "s|__CLUSTER_NAME__|${CLUSTER_NAME}|g" /tmp/install-k3s-arc.sh
 sed -i "s|__INSTALL_K3S_VERSION__|${INSTALL_K3S_VERSION}|g" /tmp/install-k3s-arc.sh
 sed -i "s|__IOT_ID__|${IOT_ID}|g" /tmp/install-k3s-arc.sh
+sed -i "s|__KEYVAULT_NAME__|${KEYVAULT_NAME}|g" /tmp/install-k3s-arc.sh
+sed -i "s|__K3S_BEARER_TOKEN_SECRET_NAME__|${K3S_BEARER_TOKEN_SECRET_NAME}|g" /tmp/install-k3s-arc.sh
 
 echo -e "${GREEN}======================================================================================================"
 echo -e "Step 3: Copying Installation Script to VM"

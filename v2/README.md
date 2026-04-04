@@ -10,6 +10,7 @@ This version 2 deployment creates a virtualized architecture where:
 - **k3s Kubernetes** is installed on the VM (step4)
 - The **k3s cluster** is Arc-enabled (step4)
 - **Azure IoT Operations** is deployed on the VM's k3s cluster (step5)
+- **Centralized observability** is enabled for the cluster (step8)
 
 This approach provides isolation and flexibility for IoT Operations deployment while maintaining connectivity to both IT and OT networks.
 
@@ -384,6 +385,7 @@ chmod +x step3-arc-enable-vm.sh
 - Enables IoT Operations features (custom locations, cluster connect)
 - Configures OIDC issuer for workload identity
 - Restarts k3s with new configuration
+- Stores k3s bearer token in Azure Key Vault
 
 **Run on:** Ubuntu host (connects to VM via SSH)
 
@@ -396,7 +398,8 @@ chmod +x step3-arc-enable-vm.sh
   --tenant-id <TENANT_ID> \
   --location <LOCATION> \
   --data-center <DATA_CENTER> \
-  --country <COUNTRY>
+  --country <COUNTRY> \
+  --keyvault-name <KEYVAULT_NAME>
 ```
 
 **Example:**
@@ -409,14 +412,16 @@ chmod +x step4-install-k3s-on-vm.sh
   --tenant-id "12345678-1234-1234-1234-123456789abc" \
   --location "eastus2" \
   --data-center "CHI" \
-  --country "US"
+  --country "US" \
+  --keyvault-name "my-keyvault"
 ```
 
 **Note:** Resource group will be automatically derived as `EXP-MFG-AIO-${DATA_CENTER}-${COUNTRY}-RG`
 
 **Verification:**
 - Check Azure Portal for Arc-enabled Kubernetes cluster (name: `<datacenter>-<hostname>-vm-k3s`)
-- SSH to VM and check: `ssh -i ~/.ssh/vm_id_rsa ubuntu@192.168.30.18 "kubectl get nodes"``
+- SSH to VM and check: `ssh -i ~/.ssh/vm_id_rsa ubuntu@192.168.30.18 "kubectl get nodes"`
+- Check Key Vault for k3s bearer token secret: `az keyvault secret show --vault-name <KEYVAULT_NAME> --name <HOSTNAME>-VM-K3S-BEARER-TOKEN`
 
 ---
 
@@ -589,6 +594,50 @@ chmod +x step7-leuze-controller-deployment.sh
 
 ---
 
+### Step 8: Configure Centralized Observability
+**Script:** `step8-centralized-observability.sh`
+
+**Purpose:** Connects the Arc-enabled k3s cluster and IoT Operations deployment to pre-created central monitoring resources.
+
+**What it does:**
+- Uses pre-created central Azure Monitor Workspace, Managed Grafana, and Log Analytics Workspace
+- Enables Arc Azure Monitor extensions on the cluster (metrics + containers)
+- Connects to VM via SSH and deploys OpenTelemetry Collector with Helm
+- Applies Prometheus scrape config for IoT Operations metrics
+- Updates IoT Operations observability settings (`az iot ops upgrade`)
+- Leaves Grafana dashboard deployment to the centralized monitoring process
+
+**Run on:** Ubuntu host (Azure operations on host, kubectl/helm operations on VM via SSH)
+
+**Usage:**
+```bash
+./step8-centralized-observability.sh \
+  --service-principal-id <SERVICE_PRINCIPAL_ID> \
+  --service-principal-secret <SERVICE_PRINCIPAL_CLIENT_SECRET> \
+  --subscription-id <SUBSCRIPTION_ID> \
+  --tenant-id <TENANT_ID> \
+  --location <LOCATION> \
+  --data-center <DATA_CENTER> \
+  --country <COUNTRY> \
+  --monitor-workspace-id <AZURE_MONITOR_WORKSPACE_RESOURCE_ID> \
+  --grafana-id <AZURE_MANAGED_GRAFANA_RESOURCE_ID> \
+  --log-analytics-id <LOG_ANALYTICS_WORKSPACE_RESOURCE_ID>
+```
+
+**Note:**
+- Central monitoring resources must be created before running this step.
+- Resource group will be automatically derived as `EXP-MFG-AIO-${DATA_CENTER}-${COUNTRY}-RG`.
+- Script templates are in `observability/otel-collector-values.yaml` and `observability/ama-metrics-prometheus-config.yaml`.
+- Grafana dashboard import is intentionally not performed in this script.
+
+**Verification:**
+- Check cluster extensions: `az k8s-extension list --cluster-name <cluster-name> --cluster-type connectedClusters --resource-group <resource-group>`
+- SSH to VM and verify collector pod: `kubectl get pods -n azure-iot-operations | grep -i otel`
+- Verify Prometheus ConfigMap: `kubectl get configmap ama-metrics-prometheus-config -n kube-system`
+- Confirm metrics and logs appear in central Monitor/Grafana/Log Analytics workspaces
+
+---
+
 ## Deployment Sequence
 
 **IMPORTANT:** Execute scripts in order:
@@ -601,8 +650,9 @@ chmod +x step7-leuze-controller-deployment.sh
 5. **step5-iot-operations-deployment.sh** - Deploy IoT Operations
 6. **step6-beckhoff-controller-deployment.sh** - Configure Beckhoff asset (optional)
 7. **step7-leuze-controller-deployment.sh** - Configure Leuze asset (optional)
+8. **step8-centralized-observability.sh** - Enable centralized observability (optional, requires pre-created central resources)
 
-**Total Estimated Time:** 50-65 minutes
+**Total Estimated Time:** 60-80 minutes
 
 ## SSH Access
 
