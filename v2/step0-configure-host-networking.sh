@@ -124,7 +124,21 @@ SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="${OT_NETWORK_MAC_ADDRESS}", NAM
 EOF
 
 echo -e "${GREEN}======================================================================================================"
-echo -e "Step 2: Creating Netplan Configuration with Bridges"
+echo -e "Step 2: Removing Conflicting Netplan Configurations"
+echo -e "======================================================================================================${RESET}"
+
+# Remove any existing netplan configs that could conflict with our bridge configuration
+# (e.g., 50-cloud-init.yaml which assigns DHCP directly to interfaces)
+echo "Checking for existing netplan configurations..."
+for f in /etc/netplan/*.yaml /etc/netplan/*.yml; do
+    if [ -f "$f" ] && [ "$(basename "$f")" != "99-custom-network.yaml" ]; then
+        echo -e "${YELLOW}Removing conflicting netplan config: $f${RESET}"
+        sudo rm -f "$f"
+    fi
+done
+
+echo -e "${GREEN}======================================================================================================"
+echo -e "Step 3: Creating Netplan Configuration with Bridges"
 echo -e "======================================================================================================${RESET}"
 
 # Create netplan configuration with bridges for VM networking
@@ -160,13 +174,13 @@ network:
 EOF
 
 echo -e "${GREEN}======================================================================================================"
-echo -e "Step 3: Applying udev Rules"
+echo -e "Step 4: Applying udev Rules"
 echo -e "======================================================================================================${RESET}"
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 
 echo -e "${GREEN}======================================================================================================"
-echo -e "Step 4: Configuring IP Forwarding and Bridge Settings"
+echo -e "Step 5: Configuring IP Forwarding and Bridge Settings"
 echo -e "======================================================================================================${RESET}"
 
 # Enable IP forwarding for bridge networking
@@ -177,7 +191,7 @@ echo 'net.bridge.bridge-nf-call-ip6tables=0' | sudo tee -a /etc/sysctl.conf
 sudo sysctl -p
 
 echo -e "${GREEN}======================================================================================================"
-echo -e "Step 5: Configuring NAT/Masquerading for VM Internet Access"
+echo -e "Step 6: Configuring NAT/Masquerading for VM Internet Access"
 echo -e "======================================================================================================${RESET}"
 
 # Install iptables-persistent to save rules across reboots
@@ -203,7 +217,7 @@ sudo netfilter-persistent save
 echo -e "${GREEN}NAT/Masquerading configured for VM internet access${RESET}"
 
 echo -e "${GREEN}======================================================================================================"
-echo -e "Step 6: Disabling Network Offload Features (e1000e Hardware Hang Fix)"
+echo -e "Step 7: Disabling Network Offload Features (e1000e Hardware Hang Fix)"
 echo -e "======================================================================================================${RESET}"
 
 # Install ethtool if not present
@@ -257,7 +271,7 @@ echo "Applying offload settings to current interfaces..."
 sudo /usr/local/bin/disable-nic-offload.sh
 
 echo -e "${GREEN}======================================================================================================"
-echo -e "Step 7: Applying Netplan Configuration"
+echo -e "Step 8: Applying Netplan Configuration"
 echo -e "======================================================================================================${RESET}"
 echo -e "${YELLOW}WARNING: Your SSH connection will likely be lost after this command!${RESET}"
 sleep 3

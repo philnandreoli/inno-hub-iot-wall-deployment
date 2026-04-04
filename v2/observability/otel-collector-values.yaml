@@ -1,0 +1,54 @@
+mode: deployment
+fullnameOverride: aio-otel-collector
+image:
+  repository: otel/opentelemetry-collector
+  tag: 0.143.0
+
+config:
+  processors:
+    memory_limiter:
+      limit_percentage: 80
+      spike_limit_percentage: 10
+      check_interval: 60s
+
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: ":4317"
+        http:
+          endpoint: ":4318"
+
+  exporters:
+    prometheus:
+      endpoint: ":8889"
+      resource_to_telemetry_conversion:
+        enabled: true
+      add_metric_suffixes: false
+
+  service:
+    extensions:
+      - health_check
+
+    telemetry:
+      metrics:
+        level: none
+
+    pipelines:
+      metrics:
+        receivers:
+          - otlp
+        exporters:
+          - prometheus
+
+resources:
+  limits:
+    cpu: "100m"
+    memory: "512Mi"
+
+ports:
+  metrics:
+    enabled: true
+    containerPort: 8889
+    servicePort: 8889
+    protocol: TCP
