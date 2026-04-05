@@ -405,15 +405,35 @@ az iot ops init \
 echo -e "${GREEN}======================================================================================================"
 echo -e "Creating IoT Ops Instance"
 echo -e "======================================================================================================${RESET}"
-az iot ops create \
-    --cluster "${CLUSTER_NAME}" \
-    -g "${RESOURCE_GROUP}" \
+EXISTING_IOT_INSTANCE_ID=$(az iot ops show \
     --name "${NE_IOT_INSTANCE}" \
-    --sr-resource-id "${SR_RESOURCE_ID}" \
-    --ns-resource-id "${NS_RESOURCE_ID}" || {
-    echo -e "${RED}Failed to create IoT Ops instance${RESET}"
-    exit 1
-}
+    --resource-group "${RESOURCE_GROUP}" \
+    --query id \
+    --output tsv 2>/dev/null || true)
+
+if [ -n "${EXISTING_IOT_INSTANCE_ID}" ]; then
+    echo -e "${YELLOW}IoT Ops instance already exists: ${NE_IOT_INSTANCE}${RESET}"
+else
+    CREATE_OUTPUT=$(az iot ops create \
+        --cluster "${CLUSTER_NAME}" \
+        -g "${RESOURCE_GROUP}" \
+        --name "${NE_IOT_INSTANCE}" \
+        --sr-resource-id "${SR_RESOURCE_ID}" \
+        --ns-resource-id "${NS_RESOURCE_ID}" 2>&1)
+    CREATE_EXIT_CODE=$?
+
+    if [ ${CREATE_EXIT_CODE} -ne 0 ]; then
+        if echo "${CREATE_OUTPUT}" | grep -qi "IoT Operations is detected on the cluster"; then
+            echo -e "${YELLOW}IoT Ops is already deployed on this cluster. Continuing without creating a new instance.${RESET}"
+        else
+            echo "${CREATE_OUTPUT}"
+            echo -e "${RED}Failed to create IoT Ops instance${RESET}"
+            exit 1
+        fi
+    else
+        echo -e "${GREEN}IoT Ops instance created: ${NE_IOT_INSTANCE}${RESET}"
+    fi
+fi
 
 echo -e "${GREEN}======================================================================================================"
 echo -e "Assigning User Assigned Managed Identity to IoT Ops Instance"
