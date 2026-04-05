@@ -136,7 +136,12 @@ export COUNTRY="${ARG_COUNTRY:-${COUNTRY}}"
 
 # VM Configuration
 export HOST_NAME=$(hostname -s)
-export VM_NAME="${HOST_NAME}-vm"
+# Only append -vm if hostname doesn't already end with -vm
+if [[ "$HOST_NAME" == *"-vm" ]]; then
+    export VM_NAME="${HOST_NAME}"
+else
+    export VM_NAME="${HOST_NAME}-vm"
+fi
 export OT_NETWORK_VM_IP="${ARG_OT_NETWORK_VM_IP:-${OT_NETWORK_VM_IP:-192.168.30.18}}"
 export SSH_KEY_PATH="${ARG_SSH_KEY_PATH:-${SSH_KEY_PATH:-$HOME/.ssh/vm_id_rsa}}"
 
