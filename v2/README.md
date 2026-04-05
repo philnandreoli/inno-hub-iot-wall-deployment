@@ -450,7 +450,8 @@ chmod +x step4-install-k3s-on-vm.sh
   --data-center <DATA_CENTER> \
   --country <COUNTRY> \
   --city <CITY> \
-  --state-region <STATE_REGION>
+  --state-region <STATE_REGION> \
+  [--eventhub-namespace-scope </subscriptions/.../providers/Microsoft.EventHub/namespaces/...>]
 ```
 
 **Example:**
@@ -466,10 +467,13 @@ chmod +x step5-iot-operations-deployment.sh
   --country "US" \
   --city "Chicago" \
   --state-region "IL" \
+  --eventhub-namespace-scope "/subscriptions/12345678-1234-1234-1234-123456789abc/resourceGroups/EXP-MFG-AIO-ControlPlane-RG/providers/Microsoft.EventHub/namespaces/aiomfgeventhub001"
 ```
 
 **Note:** 
 - Resource group will be automatically derived as `EXP-MFG-AIO-${DATA_CENTER}-${COUNTRY}-RG`
+- Event Hub RBAC is skipped unless `--eventhub-namespace-scope` or `EVENTHUB_NAMESPACE_SCOPE` is provided
+- The identity running step 5 must have `Microsoft.Authorization/roleAssignments/write` on that Event Hub namespace to grant Arc extension access
 - This step takes 10-15 minutes to complete
 
 **Verification:**

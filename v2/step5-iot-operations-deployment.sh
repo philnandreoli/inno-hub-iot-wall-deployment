@@ -22,12 +22,12 @@ export RESET='\e[0m'
 #     --service-principal-secret <sp-secret> \\
 #     --subscription-id <subscription-id> \\
 #     --tenant-id <tenant-id> \\
-#     --resource-group <resource-group> \\
 #     --location <location> \\
 #     --data-center <datacenter> \\
 #     --city <city> \\
 #     --state-region <state-region> \\
-#     --country <country>
+#     --country <country> \\
+#     [--eventhub-namespace-scope </subscriptions/.../providers/Microsoft.EventHub/namespaces/...>]
 #
 # Example:
 #   ./step5-iot-operations-deployment.sh \\
@@ -35,12 +35,12 @@ export RESET='\e[0m'
 #     --service-principal-secret "your-secret-here" \\
 #     --subscription-id "12345678-1234-1234-1234-123456789abc" \\
 #     --tenant-id "12345678-1234-1234-1234-123456789abc" \\
-#     --resource-group "EXP-MFG-AIO-RG" \\
 #     --location "eastus2" \\
 #     --data-center "CHI" \\
 #     --city "Chicago" \\
 #     --state-region "IL" \\
-#     --country "US"
+#     --country "US" \\
+#     --eventhub-namespace-scope "/subscriptions/12345678-1234-1234-1234-123456789abc/resourceGroups/EXP-MFG-AIO-ControlPlane-RG/providers/Microsoft.EventHub/namespaces/aiomfgeventhub001"
 # ============================================================================
 
 # Function to display usage
@@ -62,10 +62,12 @@ usage() {
     echo "  --ot-network-vm-ip IP              OT network IP for VM (default: 192.168.30.18)"
     echo "  --ssh-key-path PATH                Path to SSH private key (default: ~/.ssh/vm_id_rsa)"
     echo "  --iot-id ID                        IoT custom locations OID (default: a4e6246e-0a1b-48c6-8fd6-9b0631d78d05)"
+    echo "  --eventhub-namespace-scope SCOPE   Event Hub namespace resource ID for Arc RBAC grant"
     echo "  -h, --help                         Display this help message"
     echo ""
     echo "Note: Arguments can be provided via command-line or environment variables."
     echo "      Command-line arguments take precedence over environment variables."
+    echo "      Resource group is derived automatically as EXP-MFG-AIO-<DATA_CENTER>-<COUNTRY>-RG."
     exit 1
 }
 
@@ -120,6 +122,10 @@ while [[ $# -gt 0 ]]; do
             ARG_IOT_ID="$2"
             shift 2
             ;;
+        --eventhub-namespace-scope)
+            ARG_EVENTHUB_NAMESPACE_SCOPE="$2"
+            shift 2
+            ;;
         -h|--help)
             usage
             ;;
@@ -140,6 +146,11 @@ export DATA_CENTER="${ARG_DATA_CENTER:-${DATA_CENTER}}"
 export CITY="${ARG_CITY:-${CITY}}"
 export STATE_REGION="${ARG_STATE_REGION:-${STATE_REGION}}"
 export COUNTRY="${ARG_COUNTRY:-${COUNTRY}}"
+export EVENTHUB_NAMESPACE_SCOPE="${ARG_EVENTHUB_NAMESPACE_SCOPE:-${EVENTHUB_NAMESPACE_SCOPE}}"
+
+if [ -n "${EVENTHUB_NAMESPACE_SCOPE}" ] && [[ "${EVENTHUB_NAMESPACE_SCOPE}" != /* ]]; then
+    EVENTHUB_NAMESPACE_SCOPE="/${EVENTHUB_NAMESPACE_SCOPE}"
+fi
 
 # VM Configuration
 export HOST_NAME=$(hostname -s)
@@ -185,6 +196,11 @@ echo -e "${GREEN}IoT Namespace: ${NE_IOT_NAMESPACE}${RESET}"
 echo -e "${GREEN}Resource Group: ${RESOURCE_GROUP}${RESET}"
 echo -e "${GREEN}Location: ${LOCATION}${RESET}"
 echo -e "${GREEN}SSH Key Path: ${SSH_KEY_PATH}${RESET}"
+if [ -n "${EVENTHUB_NAMESPACE_SCOPE}" ]; then
+    echo -e "${GREEN}Event Hub Namespace Scope: ${EVENTHUB_NAMESPACE_SCOPE}${RESET}"
+else
+    echo -e "${YELLOW}Event Hub Namespace Scope: not set (Arc Event Hub RBAC grant will be skipped)${RESET}"
+fi
 echo ""
 
 # Validation
@@ -277,26 +293,48 @@ echo -e "Step 5: Creating IoT Ops Schema Registry"
 echo -e "======================================================================================================${RESET}"
 az extension add --upgrade --name azure-iot-ops --allow-preview
 
-az iot ops schema registry create \
-    -n "${REGISTRY_NAME}" \
-    -g "${RESOURCE_GROUP}" \
-    --registry-namespace "${REGISTRY_NAMESPACE}" \
-    --sa-resource-id "${STORAGE_ID}" \
-    --location "${LOCATION}" || {
-    echo -e "${RED}Failed to create IoT Ops Schema Registry${RESET}"
-    exit 1
-}
+EXISTING_SCHEMA_REGISTRY_ID=$(az iot ops schema registry show \
+    --name "${REGISTRY_NAME}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --query id \
+    --output tsv 2>/dev/null || true)
+
+if [ -z "${EXISTING_SCHEMA_REGISTRY_ID}" ]; then
+    az iot ops schema registry create \
+        -n "${REGISTRY_NAME}" \
+        -g "${RESOURCE_GROUP}" \
+        --registry-namespace "${REGISTRY_NAMESPACE}" \
+        --sa-resource-id "${STORAGE_ID}" \
+        --location "${LOCATION}" || {
+        echo -e "${RED}Failed to create IoT Ops Schema Registry${RESET}"
+        exit 1
+    }
+    echo -e "${GREEN}IoT Ops Schema Registry created${RESET}"
+else
+    echo -e "${YELLOW}IoT Ops Schema Registry already exists: ${REGISTRY_NAME}${RESET}"
+fi
 
 echo -e "${GREEN}======================================================================================================"
 echo -e "Step 6: Creating IoT Ops Namespace"
 echo -e "======================================================================================================${RESET}"
-az iot ops ns create \
-    -n "${NE_IOT_NAMESPACE}" \
-    -g "${RESOURCE_GROUP}" \
-    --location "${LOCATION}" || {
-    echo -e "${RED}Failed to create IoT Ops Namespace${RESET}"
-    exit 1
-}
+EXISTING_NAMESPACE_ID=$(az iot ops ns show \
+    --name "${NE_IOT_NAMESPACE}" \
+    --resource-group "${RESOURCE_GROUP}" \
+    --query id \
+    --output tsv 2>/dev/null || true)
+
+if [ -z "${EXISTING_NAMESPACE_ID}" ]; then
+    az iot ops ns create \
+        -n "${NE_IOT_NAMESPACE}" \
+        -g "${RESOURCE_GROUP}" \
+        --location "${LOCATION}" || {
+        echo -e "${RED}Failed to create IoT Ops Namespace${RESET}"
+        exit 1
+    }
+    echo -e "${GREEN}IoT Ops Namespace created${RESET}"
+else
+    echo -e "${YELLOW}IoT Ops Namespace already exists: ${NE_IOT_NAMESPACE}${RESET}"
+fi
 
 echo -e "${GREEN}======================================================================================================"
 echo -e "Step 7: Retrieving Resource IDs"
@@ -343,6 +381,7 @@ SR_RESOURCE_ID="__SR_RESOURCE_ID__"
 NS_RESOURCE_ID="__NS_RESOURCE_ID__"
 USER_ASSIGNED_MANAGED_IDENTITY="__USER_ASSIGNED_MANAGED_IDENTITY__"
 KEYVAULT_NAME="__KEYVAULT_NAME__"
+EVENTHUB_NAMESPACE_SCOPE="__EVENTHUB_NAMESPACE_SCOPE__"
 
 echo -e "${GREEN}======================================================================================================"
 echo -e "Logging into Azure on VM"
@@ -432,16 +471,44 @@ if [ ! -z "${AZURE_IOT_OPS_ARC_EXTENSION_RESOURCE_ID}" ]; then
         -o tsv)
 
     echo -e "${GREEN}Arc Extension Principal ID: ${AZURE_IOT_OPS_ARC_EXTENSION_OID_FOR_MI}${RESET}"
+fi
 
-    az role assignment create \
-        --assignee-object-id "${AZURE_IOT_OPS_ARC_EXTENSION_OID_FOR_MI}" \
-        --role "Azure Event Hubs Data Receiver" \
-        --scope "subscriptions/084c8f47-bb5d-447e-82cb-63241353edef/resourceGroups/EXP-MFG-AIO-ControlPlane-RG/providers/Microsoft.EventHub/namespaces/aiomfgeventhub001"
+grant_eventhub_role() {
+    local role_name="$1"
+    local existing_assignment_count
 
-    az role assignment create \
+    existing_assignment_count=$(az role assignment list \
         --assignee-object-id "${AZURE_IOT_OPS_ARC_EXTENSION_OID_FOR_MI}" \
-        --role "Azure Event Hubs Data Sender" \
-        --scope "subscriptions/084c8f47-bb5d-447e-82cb-63241353edef/resourceGroups/EXP-MFG-AIO-ControlPlane-RG/providers/Microsoft.EventHub/namespaces/aiomfgeventhub001"
+        --scope "${EVENTHUB_NAMESPACE_SCOPE}" \
+        --query "[?roleDefinitionName=='${role_name}'] | length(@)" \
+        -o tsv 2>/dev/null || true)
+
+    if [ "${existing_assignment_count}" = "1" ]; then
+        echo -e "${YELLOW}${role_name} already assigned on ${EVENTHUB_NAMESPACE_SCOPE}${RESET}"
+        return 0
+    fi
+
+    if az role assignment create \
+        --assignee-object-id "${AZURE_IOT_OPS_ARC_EXTENSION_OID_FOR_MI}" \
+        --assignee-principal-type ServicePrincipal \
+        --role "${role_name}" \
+        --scope "${EVENTHUB_NAMESPACE_SCOPE}" >/dev/null; then
+        echo -e "${GREEN}Granted ${role_name} on ${EVENTHUB_NAMESPACE_SCOPE}${RESET}"
+    else
+        echo -e "${YELLOW}WARNING: Failed to grant ${role_name} on ${EVENTHUB_NAMESPACE_SCOPE}.${RESET}"
+        echo -e "${YELLOW}The deployment will continue, but an identity with Microsoft.Authorization/roleAssignments/write on that Event Hub namespace is required to complete this RBAC step.${RESET}"
+    fi
+}
+
+if [ -z "${AZURE_IOT_OPS_ARC_EXTENSION_RESOURCE_ID}" ]; then
+    echo -e "${YELLOW}Arc extension not found. Skipping Event Hub RBAC grant.${RESET}"
+elif [ -z "${EVENTHUB_NAMESPACE_SCOPE}" ]; then
+    echo -e "${YELLOW}Event Hub namespace scope not provided. Skipping Event Hub RBAC grant.${RESET}"
+elif [ -z "${AZURE_IOT_OPS_ARC_EXTENSION_OID_FOR_MI}" ]; then
+    echo -e "${YELLOW}Arc extension principal ID not available. Skipping Event Hub RBAC grant.${RESET}"
+else
+    grant_eventhub_role "Azure Event Hubs Data Receiver"
+    grant_eventhub_role "Azure Event Hubs Data Sender"
 fi
 
 echo -e "${GREEN}======================================================================================================"
@@ -465,6 +532,7 @@ sed -i "s|__SR_RESOURCE_ID__|${SR_RESOURCE_ID}|g" /tmp/deploy-iot-ops.sh
 sed -i "s|__NS_RESOURCE_ID__|${NS_RESOURCE_ID}|g" /tmp/deploy-iot-ops.sh
 sed -i "s|__USER_ASSIGNED_MANAGED_IDENTITY__|${USER_ASSIGNED_MANAGED_IDENTITY}|g" /tmp/deploy-iot-ops.sh
 sed -i "s|__KEYVAULT_NAME__|${KEYVAULT_NAME}|g" /tmp/deploy-iot-ops.sh
+sed -i "s|__EVENTHUB_NAMESPACE_SCOPE__|${EVENTHUB_NAMESPACE_SCOPE}|g" /tmp/deploy-iot-ops.sh
 
 echo -e "${GREEN}======================================================================================================"
 echo -e "Step 9: Copying Deployment Script to VM"
