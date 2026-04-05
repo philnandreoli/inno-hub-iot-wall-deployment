@@ -449,7 +449,7 @@ sed -i "s|__CLUSTER_NAME__|${CLUSTER_NAME}|g" /tmp/configure-beckhoff.sh
 echo -e "${GREEN}======================================================================================================"
 echo -e "Step 2: Copying Configuration Script to VM"
 echo -e "======================================================================================================${RESET}"
-scp -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no /tmp/configure-beckhoff.sh ubuntu@${OT_NETWORK_VM_IP}:/tmp/configure-beckhoff.sh
+scp -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no /tmp/configure-beckhoff.sh ubuntu@${OT_NETWORK_VM_IP}:~/configure-beckhoff.sh
 
 if [ $? -ne 0 ]; then
     echo -e "${RED}Failed to copy script to VM${RESET}"
@@ -461,7 +461,7 @@ echo -e "Step 3: Executing Beckhoff Controller Configuration on VM"
 echo -e "======================================================================================================${RESET}"
 echo -e "${YELLOW}This may take a few minutes...${RESET}"
 
-ssh -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no ubuntu@${OT_NETWORK_VM_IP} "chmod +x /tmp/configure-beckhoff.sh && /tmp/configure-beckhoff.sh"
+ssh -i "$SSH_KEY_PATH" -o StrictHostKeyChecking=no ubuntu@${OT_NETWORK_VM_IP} "chmod +x ~/configure-beckhoff.sh && ~/configure-beckhoff.sh"
 
 if [ $? -ne 0 ]; then
     echo -e "${RED}Failed to execute Beckhoff controller configuration on VM${RESET}"
