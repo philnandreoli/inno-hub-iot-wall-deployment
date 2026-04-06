@@ -331,34 +331,6 @@ sleep 15
 kubectl get nodes
 
 echo -e "${GREEN}======================================================================================================"
-echo -e "Storing k3s Bearer Token in Azure Key Vault"
-echo -e "======================================================================================================${RESET}"
-
-# Extract the bearer token (password) from the k3s kubeconfig
-K3S_BEARER_TOKEN=$(sudo kubectl config view --kubeconfig /etc/rancher/k3s/k3s.yaml --raw -o jsonpath='{.users[0].user.password}')
-
-if [ -z "$K3S_BEARER_TOKEN" ]; then
-    echo -e "${RED}ERROR: Failed to extract k3s bearer token from kubeconfig${RESET}"
-    exit 1
-fi
-
-echo -e "${YELLOW}Bearer token extracted successfully (length: ${#K3S_BEARER_TOKEN} chars)${RESET}"
-
-# Store the bearer token in Azure Key Vault
-az keyvault secret set \
-    --vault-name "${KEYVAULT_NAME}" \
-    --name "${K3S_BEARER_TOKEN_SECRET_NAME}" \
-    --value "${K3S_BEARER_TOKEN}" \
-    --output none
-
-if [ $? -ne 0 ]; then
-    echo -e "${RED}Failed to store k3s bearer token in Key Vault${RESET}"
-    exit 1
-fi
-
-echo -e "${GREEN}✓ k3s bearer token stored in Key Vault '${KEYVAULT_NAME}' as secret '${K3S_BEARER_TOKEN_SECRET_NAME}'${RESET}"
-
-echo -e "${GREEN}======================================================================================================"
 echo -e "k3s Installation and Arc Enablement Complete!"
 echo -e "======================================================================================================${RESET}"
 echo -e "${GREEN}Cluster Name: ${CLUSTER_NAME}${RESET}"
