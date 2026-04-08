@@ -166,6 +166,8 @@ if [ -z "$SERVICE_PRINCIPAL_ID" ] || [ -z "$SERVICE_PRINCIPAL_CLIENT_SECRET" ] |
     usage
 fi
 
+sudo apt install -y curl
+
 echo -e "${GREEN}======================================================================================================"
 echo -e "Step 1: Installing Azure CLI"
 echo -e "======================================================================================================${RESET}"
