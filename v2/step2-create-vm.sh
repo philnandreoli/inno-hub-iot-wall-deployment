@@ -4,6 +4,14 @@ export YELLOW='\e[33m'
 export GREEN='\e[32m'
 export RESET='\e[0m'
 
+# This script must run as a regular user so SSH keys are stored in that user's ~/.ssh.
+if [ "$EUID" -eq 0 ]; then
+    echo -e "${RED}ERROR: Do not run this script with sudo or as root.${RESET}"
+    echo -e "${YELLOW}Run it as your normal user so SSH keys are saved to your home directory.${RESET}"
+    echo -e "${YELLOW}If you already ran with sudo, keys may be under /root/.ssh.${RESET}"
+    exit 1
+fi
+
 # ============================================================================
 # Create Virtual Machine - Step 2
 # ============================================================================
@@ -252,18 +260,25 @@ chmod 700 ~/.ssh
 
 # Retrieve SSH private key
 echo -e "${YELLOW}Retrieving SSH private key from Key Vault...${RESET}"
-az keyvault secret show --vault-name "${KEYVAULT_NAME}" --name "${SSH_KEY_SECRET_NAME}" --query value -o tsv > ~/.ssh/vm_id_rsa
-if [ $? -ne 0 ]; then
+PRIVATE_KEY_RAW=$(az keyvault secret show --vault-name "${KEYVAULT_NAME}" --name "${SSH_KEY_SECRET_NAME}" --query value -o tsv)
+if [ $? -ne 0 ] || [ -z "$PRIVATE_KEY_RAW" ]; then
     echo -e "${RED}Failed to retrieve SSH private key from Key Vault${RESET}"
     echo -e "${RED}Vault: ${KEYVAULT_NAME}, Secret: ${SSH_KEY_SECRET_NAME}${RESET}"
     exit 1
 fi
+printf "%b" "$PRIVATE_KEY_RAW" > ~/.ssh/vm_id_rsa
 
 # Validate private key was retrieved
 if [ ! -s ~/.ssh/vm_id_rsa ]; then
     echo -e "${RED}ERROR: SSH private key file is empty!${RESET}"
     echo -e "${RED}Check that the secret '${SSH_KEY_SECRET_NAME}' exists in Key Vault '${KEYVAULT_NAME}'${RESET}"
     exit 1
+fi
+
+# Normalize key formatting from Key Vault (CRLF and escaped newlines are common issues)
+sed -i 's/\r$//' ~/.ssh/vm_id_rsa
+if grep -q '\\n' ~/.ssh/vm_id_rsa; then
+    printf "%b" "$(cat ~/.ssh/vm_id_rsa)" > ~/.ssh/vm_id_rsa
 fi
 
 # Check if it looks like a valid SSH private key
@@ -278,18 +293,29 @@ if ! grep -q "BEGIN.*PRIVATE KEY" ~/.ssh/vm_id_rsa; then
 fi
 
 chmod 600 ~/.ssh/vm_id_rsa
+
+# Ensure the private key can actually be parsed by ssh-keygen/OpenSSH.
+if ! ssh-keygen -y -f ~/.ssh/vm_id_rsa >/dev/null 2>&1; then
+    echo -e "${RED}ERROR: SSH private key format is invalid (OpenSSH/libcrypto parse failed).${RESET}"
+    echo -e "${YELLOW}The Key Vault secret may contain escaped or corrupted line breaks.${RESET}"
+    echo -e "${YELLOW}First line: $(head -n 1 ~/.ssh/vm_id_rsa)${RESET}"
+    echo -e "${YELLOW}Last line:  $(tail -n 1 ~/.ssh/vm_id_rsa)${RESET}"
+    exit 1
+fi
+
 echo -e "${GREEN}✓ SSH private key retrieved and validated${RESET}"
 echo -e "${YELLOW}  File: ~/.ssh/vm_id_rsa ($(wc -c < ~/.ssh/vm_id_rsa) bytes)${RESET}"
 echo -e "${YELLOW}  First line: $(head -n 1 ~/.ssh/vm_id_rsa)${RESET}"
 
 # Retrieve SSH public key
 echo -e "${YELLOW}Retrieving SSH public key from Key Vault...${RESET}"
-az keyvault secret show --vault-name "${KEYVAULT_NAME}" --name "${SSH_PUB_KEY_SECRET_NAME}" --query value -o tsv > ~/.ssh/vm_id_rsa.pub
-if [ $? -ne 0 ]; then
+PUBLIC_KEY_RAW=$(az keyvault secret show --vault-name "${KEYVAULT_NAME}" --name "${SSH_PUB_KEY_SECRET_NAME}" --query value -o tsv)
+if [ $? -ne 0 ] || [ -z "$PUBLIC_KEY_RAW" ]; then
     echo -e "${RED}Failed to retrieve SSH public key from Key Vault${RESET}"
     echo -e "${RED}Vault: ${KEYVAULT_NAME}, Secret: ${SSH_PUB_KEY_SECRET_NAME}${RESET}"
     exit 1
 fi
+printf "%b" "$PUBLIC_KEY_RAW" > ~/.ssh/vm_id_rsa.pub
 
 # Validate public key was retrieved
 if [ ! -s ~/.ssh/vm_id_rsa.pub ]; then
@@ -745,7 +771,7 @@ if [ "$SSH_SUCCESS" = false ]; then
     echo ""
     echo -e "  ${GREEN}Step 6: Try SSH with password (if needed)${RESET}"
     echo -e "    From console, set password: sudo passwd ubuntu"
-    echo -e "    Then SSH: ssh ubuntu@${OT_NETWORK_VM_IP}"
+    echo -e "    Then SSH: ssh -i ~/.ssh/vm_id_rsa ubuntu@${OT_NETWORK_VM_IP}"
     echo ""
     echo -e "${RED}NOTE: You should resolve SSH connectivity before proceeding to step3${RESET}"
     exit 1
