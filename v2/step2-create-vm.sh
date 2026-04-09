@@ -622,19 +622,10 @@ else
 fi
 
 echo -e "${GREEN}======================================================================================================"
-echo -e "Step 11b: Removing Cloud-Init ISO from VM Configuration"
+echo -e "Step 11b: Deferring Cloud-Init ISO Removal"
 echo -e "======================================================================================================${RESET}"
-echo -e "${YELLOW}Waiting 30 seconds for cloud-init to complete before ejecting ISO...${RESET}"
-sleep 30
-
-# Eject the cloud-init ISO to prevent boot errors after reboot
-sudo virsh change-media "${VM_NAME}" sda --eject --config 2>/dev/null || \
-sudo virsh detach-disk "${VM_NAME}" /tmp/cloud-init.iso --persistent 2>/dev/null || \
-echo -e "${YELLOW}Cloud-init ISO already ejected or not found${RESET}"
-
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}Cloud-init ISO ejected from VM${RESET}"
-fi
+echo -e "${YELLOW}Keeping cloud-init ISO attached until first successful SSH login.${RESET}"
+echo -e "${YELLOW}This avoids race conditions where cloud-init user-data is not fully applied.${RESET}"
 
 echo -e "${GREEN}======================================================================================================"
 echo -e "Step 12: Waiting for VM to Start"
@@ -716,18 +707,19 @@ SSH_SUCCESS=false
 
 while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
     echo -e "${YELLOW}Attempting SSH connection (attempt $((RETRY_COUNT + 1))/$MAX_RETRIES)...${RESET}"
+
+    SSH_OUTPUT=$(ssh -i ~/.ssh/vm_id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 ubuntu@${OT_NETWORK_VM_IP} "echo 'SSH connection successful'" 2>&1)
+    SSH_EXIT_CODE=$?
     
-    # Try SSH with verbose error output for first few attempts
-    if [ $RETRY_COUNT -lt 3 ]; then
-        ssh -i ~/.ssh/vm_id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 ubuntu@${OT_NETWORK_VM_IP} "echo 'SSH connection successful'" 2>&1 | grep -i "connection\|refused\|timeout" || true
-    fi
-    
-    ssh -i ~/.ssh/vm_id_rsa -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 ubuntu@${OT_NETWORK_VM_IP} "echo 'SSH connection successful'" > /dev/null 2>&1
-    
-    if [ $? -eq 0 ]; then
+    if [ $SSH_EXIT_CODE -eq 0 ]; then
         SSH_SUCCESS=true
         echo -e "${GREEN}SSH connection to VM successful!${RESET}"
         break
+    else
+        if [ $RETRY_COUNT -lt 5 ]; then
+            echo -e "${YELLOW}SSH failure detail:${RESET}"
+            echo "$SSH_OUTPUT" | tail -n 3
+        fi
     fi
     
     RETRY_COUNT=$((RETRY_COUNT + 1))
@@ -776,6 +768,18 @@ if [ "$SSH_SUCCESS" = false ]; then
     echo -e "${RED}NOTE: You should resolve SSH connectivity before proceeding to step3${RESET}"
     exit 1
 else
+    echo -e "${GREEN}======================================================================================================"
+    echo -e "Step 14b: Removing Cloud-Init ISO from VM Configuration"
+    echo -e "======================================================================================================${RESET}"
+    # Eject the cloud-init ISO only after successful SSH to avoid cloud-init race conditions.
+    sudo virsh change-media "${VM_NAME}" sda --eject --config 2>/dev/null || \
+    sudo virsh detach-disk "${VM_NAME}" /tmp/cloud-init.iso --persistent 2>/dev/null || \
+    echo -e "${YELLOW}Cloud-init ISO already ejected or not found${RESET}"
+
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}Cloud-init ISO ejected from VM${RESET}"
+    fi
+
     echo -e "${GREEN}======================================================================================================"
     echo -e "Step 15: Checking VM Network Configuration"
     echo -e "======================================================================================================${RESET}"
