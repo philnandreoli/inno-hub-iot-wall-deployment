@@ -321,17 +321,16 @@ echo -e "  Public key:  ~/.ssh/vm_id_rsa.pub"
 echo -e "  Private key fingerprint: $(ssh-keygen -lf ~/.ssh/vm_id_rsa 2>/dev/null || echo 'Unable to generate fingerprint')"
 echo -e "  Public key fingerprint:  $(ssh-keygen -lf ~/.ssh/vm_id_rsa.pub 2>/dev/null || echo 'Unable to generate fingerprint')"
 echo ""
-echo -e "${YELLOW}Verifying keys match (generating public key from private key):${RESET}"
-GENERATED_PUB_KEY=$(ssh-keygen -y -f ~/.ssh/vm_id_rsa 2>/dev/null)
-STORED_PUB_KEY=$(cat ~/.ssh/vm_id_rsa.pub)
-if [ "$GENERATED_PUB_KEY" = "$STORED_PUB_KEY" ]; then
+echo -e "${YELLOW}Verifying keys match (comparing fingerprints):${RESET}"
+PRIVATE_FINGERPRINT=$(ssh-keygen -lf ~/.ssh/vm_id_rsa 2>/dev/null | awk '{print $2}')
+PUBLIC_FINGERPRINT=$(ssh-keygen -lf ~/.ssh/vm_id_rsa.pub 2>/dev/null | awk '{print $2}')
+if [ "$PRIVATE_FINGERPRINT" = "$PUBLIC_FINGERPRINT" ]; then
     echo -e "${GREEN}✓ SSH keys are a matching pair!${RESET}"
+    echo -e "${GREEN}  Fingerprint: $PRIVATE_FINGERPRINT${RESET}"
 else
     echo -e "${RED}✗ WARNING: SSH keys DO NOT match!${RESET}"
-    echo -e "${YELLOW}Generated from private key:${RESET}"
-    echo "$GENERATED_PUB_KEY"
-    echo -e "${YELLOW}Stored in Key Vault:${RESET}"
-    echo "$STORED_PUB_KEY"
+    echo -e "${YELLOW}Private key fingerprint: $PRIVATE_FINGERPRINT${RESET}"
+    echo -e "${YELLOW}Public key fingerprint:  $PUBLIC_FINGERPRINT${RESET}"
     echo -e "${RED}This will cause authentication failures. Keys must be regenerated.${RESET}"
     exit 1
 fi
