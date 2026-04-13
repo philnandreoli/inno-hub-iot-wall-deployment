@@ -16,7 +16,7 @@ class EventHouseService:
         self.timeout = httpx.Timeout(30.0)
 
     async def get_devices(self) -> list[str]:
-        query = "SELECT DISTINCT deviceId FROM devices"
+        query = "SELECT DISTINCT deviceId FROM devices LIMIT 1000"
         rows = await self._query(query)
         devices: list[str] = []
         for row in rows:
@@ -29,8 +29,12 @@ class EventHouseService:
         return devices
 
     async def get_device_state(self, device_id: str) -> DeviceState:
+        # Sanitize device_id to prevent KQL injection: allow only alphanumeric, hyphens, underscores
+        sanitized_id = "".join(c for c in device_id if c.isalnum() or c in ("-", "_"))
+        if not sanitized_id:
+            raise ValueError(f"Invalid device_id: {device_id!r}")
         query = (
-            f"SELECT TOP 1 * FROM telemetry WHERE deviceId = '{device_id}' "
+            f"SELECT TOP 1 * FROM telemetry WHERE deviceId = '{sanitized_id}' "
             "ORDER BY timestamp DESC"
         )
         rows = await self._query(query)

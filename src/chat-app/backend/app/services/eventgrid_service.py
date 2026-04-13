@@ -53,8 +53,9 @@ class EventGridService:
                 raise ValueError("Lamp value must be a boolean")
             return {"lamp": value}
         if action == "fan":
+            # bool is a subclass of int in Python, so explicitly reject booleans first
             if isinstance(value, bool) or not isinstance(value, int):
-                raise ValueError("Fan value must be an integer")
+                raise ValueError("Fan value must be a non-boolean integer")
             if value < 0 or value > 32000:
                 raise ValueError("Fan value must be between 0 and 32000")
             return {"fan": value}

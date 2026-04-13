@@ -80,11 +80,17 @@ export default function DeviceStatePanel() {
         <div className="state-row">
           <dt>Status</dt>
           <dd>
-            <span
-              className={`status-dot ${state.online ? 'status-dot--online' : 'status-dot--offline'}`}
-              aria-hidden="true"
-            />
-            {state.online ? 'Online' : 'Offline'}
+            {state.online != null ? (
+              <>
+                <span
+                  className={`status-dot ${state.online ? 'status-dot--online' : 'status-dot--offline'}`}
+                  aria-hidden="true"
+                />
+                {state.online ? 'Online' : 'Offline'}
+              </>
+            ) : (
+              'State unavailable'
+            )}
           </dd>
         </div>
 
@@ -92,7 +98,7 @@ export default function DeviceStatePanel() {
         <div className="state-row">
           <dt>Lamp</dt>
           <dd>
-            <span aria-hidden="true">{state.lamp ? '💡' : '⚫'}</span>{' '}
+            <span aria-hidden="true">{state.lamp != null ? (state.lamp ? '💡' : '⚫') : '❓'}</span>{' '}
             {state.lamp != null ? (state.lamp ? 'ON' : 'OFF') : 'State unavailable'}
           </dd>
         </div>

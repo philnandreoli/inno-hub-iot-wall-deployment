@@ -16,23 +16,6 @@ async def publish_command(
     payload: CommandRequest,
     service: EventGridService = Depends(get_eventgrid_service),
 ) -> CommandResponse:
-    if payload.action == "lamp" and not isinstance(payload.value, bool):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="For action 'lamp', value must be boolean",
-            )
-    if payload.action == "fan":
-        if isinstance(payload.value, bool) or not isinstance(payload.value, int):
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="For action 'fan', value must be integer",
-            )
-        if payload.value < 0 or payload.value > 32000:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-                detail="For action 'fan', value must be between 0 and 32000",
-            )
-
     try:
         await service.publish_command(deviceId, payload.action, payload.value)
         return CommandResponse(
@@ -43,7 +26,7 @@ async def publish_command(
         )
     except ValueError as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
     except Exception as exc:
