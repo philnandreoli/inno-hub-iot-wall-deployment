@@ -14,7 +14,7 @@ const FAN_PRESETS = [
  * Includes confirmation step and success/failure feedback.
  */
 export default function CommandPanel() {
-  const { selectedDeviceId } = useChat();
+  const { selectedDeviceId, selectedInstanceId } = useChat();
   const [fanSpeed, setFanSpeed] = useState('');
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState(null); // { type: 'success'|'error', text }
@@ -32,14 +32,14 @@ export default function CommandPanel() {
   const cancelConfirm = useCallback(() => setConfirm(null), []);
 
   const executeCommand = useCallback(async () => {
-    if (!confirm || !selectedDeviceId) return;
+    if (!confirm || !selectedDeviceId || !selectedInstanceId) return;
     const { action, value } = confirm;
     setConfirm(null);
     setSending(true);
     setFeedback(null);
 
     try {
-      const result = await sendCommand(selectedDeviceId, action, value);
+      const result = await sendCommand(selectedDeviceId, action, value, selectedInstanceId);
       setFeedback({
         type: result.success ? 'success' : 'error',
         text: result.message || 'Command sent.',
@@ -49,9 +49,18 @@ export default function CommandPanel() {
     } finally {
       setSending(false);
     }
-  }, [confirm, selectedDeviceId]);
+  }, [confirm, selectedDeviceId, selectedInstanceId]);
 
   /* ---------- disabled state -------------------------------------- */
+
+  if (!selectedInstanceId) {
+    return (
+      <div className="command-panel" aria-label="Device commands">
+        <h3 className="panel-title">Commands</h3>
+        <p className="command-panel__placeholder">Select an IoT Operations instance first.</p>
+      </div>
+    );
+  }
 
   if (!selectedDeviceId) {
     return (

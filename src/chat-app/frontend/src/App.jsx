@@ -1,6 +1,7 @@
 import './App.css';
 import { ChatProvider } from './context/ChatContext';
 import ChatWindow from './components/ChatWindow';
+import InstanceSelector from './components/InstanceSelector';
 import DeviceSelector from './components/DeviceSelector';
 import DeviceStatePanel from './components/DeviceStatePanel';
 import CommandPanel from './components/CommandPanel';
@@ -13,8 +14,9 @@ import CommandPanel from './components/CommandPanel';
  * │  Header                                               │
  * ├────────────────┬─────────────────────────────────────┤
  * │  Sidebar       │  Chat Window                        │
- * │  - Devices     │  - Messages                         │
- * │  - State       │  - Input                            │
+ * │  - Instance    │  - Messages                         │
+ * │  - Devices     │  - Input                            │
+ * │  - State       │                                     │
  * │  - Commands    │                                     │
  * └────────────────┴─────────────────────────────────────┘
  */
@@ -35,6 +37,7 @@ function App() {
 
         {/* Sidebar */}
         <aside className="app-sidebar" aria-label="Device controls">
+          <InstanceSelector />
           <DeviceSelector />
           <DeviceStatePanel />
           <CommandPanel />

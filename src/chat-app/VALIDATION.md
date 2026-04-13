@@ -18,13 +18,13 @@ Confirm all of the following before starting the DevContainer:
 - [ ] Required Azure resources are provisioned:
   - [ ] Azure OpenAI Service with a `gpt-4o` or `gpt-4-turbo` deployment
   - [ ] Fabric EventHouse with the MCP REST endpoint reachable
-  - [ ] Azure Event Grid custom topic created
+  - [ ] Azure Event Grid Namespace with MQTT broker enabled
 - [ ] Environment variables are set on the host (see `DEPLOYMENT.md §3`):
   - [ ] `AZURE_OPENAI_ENDPOINT`
   - [ ] `AZURE_OPENAI_DEPLOYMENT`
   - [ ] `EVENTHOUSE_MCP_ENDPOINT`
   - [ ] `EVENTGRID_MQTT_HOSTNAME`
-  - [ ] `INSTANCE_NAME`
+  - [ ] `AZURE_SUBSCRIPTION_IDS` (optional — limits instance discovery to specific subscriptions)
 
 ---
 

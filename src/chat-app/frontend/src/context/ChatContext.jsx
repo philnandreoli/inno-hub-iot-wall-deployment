@@ -10,6 +10,8 @@ const initialState = {
   messages: [],
   /** @type {string|null} */
   conversationId: null,
+  /** @type {string|null} — name of the selected AIO instance */
+  selectedInstanceId: null,
   /** @type {string|null} */
   selectedDeviceId: null,
   /** @type {boolean} */
@@ -26,6 +28,7 @@ const ActionTypes = {
   SEND_MESSAGE_START: 'SEND_MESSAGE_START',
   SEND_MESSAGE_SUCCESS: 'SEND_MESSAGE_SUCCESS',
   SEND_MESSAGE_ERROR: 'SEND_MESSAGE_ERROR',
+  SET_SELECTED_INSTANCE: 'SET_SELECTED_INSTANCE',
   SET_SELECTED_DEVICE: 'SET_SELECTED_DEVICE',
   CLEAR_CONVERSATION: 'CLEAR_CONVERSATION',
   DISMISS_ERROR: 'DISMISS_ERROR',
@@ -79,6 +82,14 @@ function chatReducer(state, action) {
         ...state,
         isLoading: false,
         error: action.payload,
+      };
+
+    case ActionTypes.SET_SELECTED_INSTANCE:
+      return {
+        ...state,
+        selectedInstanceId: action.payload,
+        // Clear device selection when instance changes
+        selectedDeviceId: null,
       };
 
     case ActionTypes.SET_SELECTED_DEVICE:
@@ -140,6 +151,10 @@ export function ChatProvider({ children }) {
     [state.selectedDeviceId, state.conversationId],
   );
 
+  const setSelectedInstance = useCallback((instanceName) => {
+    dispatch({ type: ActionTypes.SET_SELECTED_INSTANCE, payload: instanceName });
+  }, []);
+
   const setSelectedDevice = useCallback((deviceId) => {
     dispatch({ type: ActionTypes.SET_SELECTED_DEVICE, payload: deviceId });
   }, []);
@@ -156,11 +171,12 @@ export function ChatProvider({ children }) {
     () => ({
       ...state,
       sendMessage,
+      setSelectedInstance,
       setSelectedDevice,
       clearConversation,
       dismissError,
     }),
-    [state, sendMessage, setSelectedDevice, clearConversation, dismissError],
+    [state, sendMessage, setSelectedInstance, setSelectedDevice, clearConversation, dismissError],
   );
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
@@ -170,6 +186,7 @@ export function ChatProvider({ children }) {
  * useChat — convenience hook to consume chat context.
  * @returns {typeof initialState & {
  *   sendMessage: (msg: string) => Promise<void>,
+ *   setSelectedInstance: (name: string|null) => void,
  *   setSelectedDevice: (id: string|null) => void,
  *   clearConversation: () => void,
  *   dismissError: () => void,

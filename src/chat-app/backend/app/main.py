@@ -8,7 +8,7 @@ Start locally:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import chat_router, commands_router, devices_router
+from app.routers import chat_router, commands_router, devices_router, instances_router
 
 app = FastAPI(
     title="IoT Wall Chat App API",
@@ -41,3 +41,4 @@ async def root() -> dict:
 app.include_router(chat_router)
 app.include_router(devices_router)
 app.include_router(commands_router)
+app.include_router(instances_router)

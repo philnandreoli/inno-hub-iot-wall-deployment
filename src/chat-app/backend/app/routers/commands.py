@@ -17,7 +17,9 @@ async def publish_command(
     service: EventGridMQTTService = Depends(get_eventgrid_service),
 ) -> CommandResponse:
     try:
-        await service.publish_command(deviceId, payload.action, payload.value)
+        await service.publish_command(
+            deviceId, payload.action, payload.value, payload.instance_name
+        )
         return CommandResponse(
             success=True,
             device_id=deviceId,

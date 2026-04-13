@@ -28,14 +28,16 @@ async def test_cache_hit_uses_cached_result():
     upstream.get_device_state = AsyncMock(
         return_value=DeviceState(device_id="device-1", online=True)
     )
-    service = DeviceStateService(upstream, ttl_seconds=15)
+    service = DeviceStateService(upstream, redis_client=AsyncMock(), ttl_seconds=15)
+    service.cache.get = AsyncMock(return_value={"device_id": "device-1", "online": True})
+    service.cache.set = AsyncMock()
 
     first = await service.get_cached_device_state("device-1")
     second = await service.get_cached_device_state("device-1")
 
     assert first.device_id == "device-1"
     assert second.device_id == "device-1"
-    assert upstream.get_device_state.await_count == 1
+    assert upstream.get_device_state.await_count == 0
 
 
 def test_ttlcache_basic_behavior():

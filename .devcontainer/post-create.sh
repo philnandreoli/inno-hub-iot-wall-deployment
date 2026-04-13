@@ -43,8 +43,11 @@ EVENTHOUSE_MCP_ENDPOINT=${EVENTHOUSE_MCP_ENDPOINT:-}
 EVENTGRID_MQTT_HOSTNAME=${EVENTGRID_MQTT_HOSTNAME:-}
 EVENTGRID_MQTT_PORT=${EVENTGRID_MQTT_PORT:-8883}
 
-# Azure IoT Operations
-INSTANCE_NAME=${INSTANCE_NAME:-}
+# Redis cache (uses Docker Compose service name 'redis' as hostname)
+REDIS_URL=${REDIS_URL:-redis://redis:6379}
+
+# Azure subscriptions to search for IoT Operations instances (comma-separated, optional)
+AZURE_SUBSCRIPTION_IDS=${AZURE_SUBSCRIPTION_IDS:-}
 
 # Application tuning
 STATE_CACHE_TTL_SECONDS=${STATE_CACHE_TTL_SECONDS:-15}

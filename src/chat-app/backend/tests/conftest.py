@@ -7,8 +7,10 @@ from httpx import ASGITransport, AsyncClient
 
 from app.main import app
 from app.schemas.device import DeviceState
+from app.schemas.instance import AioInstance
 from app.services.device_state import get_device_state_service
 from app.services.eventgrid_service import get_eventgrid_service
+from app.services.instances_service import get_instances_service
 from app.services.openai_service import get_openai_service
 
 
@@ -52,6 +54,23 @@ def mock_eventgrid_service() -> Mock:
 
 
 @pytest.fixture
+def mock_instances_service() -> Mock:
+    service = Mock()
+    service.list_instances = AsyncMock(
+        return_value=[
+            AioInstance(
+                name="my-instance",
+                resource_group="rg-1",
+                subscription_id="sub-1",
+                location="eastus",
+                description="test instance",
+            )
+        ]
+    )
+    return service
+
+
+@pytest.fixture
 def override_openai_dependency(mock_openai_service: Mock) -> AsyncGenerator[None, None]:
     app.dependency_overrides[get_openai_service] = lambda: mock_openai_service
     yield
@@ -72,3 +91,10 @@ def override_eventgrid_dependency(mock_eventgrid_service: Mock) -> AsyncGenerato
     app.dependency_overrides[get_eventgrid_service] = lambda: mock_eventgrid_service
     yield
     app.dependency_overrides.pop(get_eventgrid_service, None)
+
+
+@pytest.fixture
+def override_instances_dependency(mock_instances_service: Mock) -> AsyncGenerator[None, None]:
+    app.dependency_overrides[get_instances_service] = lambda: mock_instances_service
+    yield
+    app.dependency_overrides.pop(get_instances_service, None)

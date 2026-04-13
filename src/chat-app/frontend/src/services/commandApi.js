@@ -2,23 +2,24 @@
  * Command API service — sends lamp/fan control commands to a device.
  *
  * POST /api/commands/:deviceId
- * Request:  { action: "lamp"|"fan", value: boolean|number }
+ * Request:  { instance_name: string, action: "lamp"|"fan", value: boolean|number }
  * Response: { success: boolean, device_id: string, action: string, message: string }
  */
 
 /**
  * Send a control command to a device.
  *
- * @param {string} deviceId - Target device identifier.
- * @param {string} action   - "lamp" or "fan".
+ * @param {string} deviceId     - Target device identifier.
+ * @param {string} action       - "lamp" or "fan".
  * @param {boolean|number} value - For lamp: true/false. For fan: 0–32000.
+ * @param {string} instanceName - Name of the AIO instance to route the command through.
  * @returns {Promise<{success: boolean, device_id: string, action: string, message: string}>}
  */
-export async function sendCommand(deviceId, action, value) {
+export async function sendCommand(deviceId, action, value, instanceName) {
   const response = await fetch(`/api/commands/${encodeURIComponent(deviceId)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, value }),
+    body: JSON.stringify({ instance_name: instanceName, action, value }),
   });
 
   if (!response.ok) {

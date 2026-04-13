@@ -7,7 +7,7 @@ import { useChat } from '../context/ChatContext';
  * pick the active device. Updates context selectedDeviceId on selection.
  */
 export default function DeviceSelector() {
-  const { selectedDeviceId, setSelectedDevice } = useChat();
+  const { selectedDeviceId, selectedInstanceId, setSelectedDevice } = useChat();
   const [devices, setDevices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -40,6 +40,16 @@ export default function DeviceSelector() {
     const value = e.target.value;
     setSelectedDevice(value || null);
   };
+
+  /* If no instance is selected, show a placeholder instead of the dropdown */
+  if (!selectedInstanceId) {
+    return (
+      <div className="device-selector" aria-label="Device selector">
+        <h3 className="panel-title">Devices</h3>
+        <p className="device-selector__status">Select an IoT Operations instance first</p>
+      </div>
+    );
+  }
 
   return (
     <div className="device-selector" aria-label="Device selector">

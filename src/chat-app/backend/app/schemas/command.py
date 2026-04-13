@@ -1,6 +1,6 @@
 from typing import Literal, Union
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class LampCommand(BaseModel):
@@ -19,6 +19,7 @@ class FanCommand(BaseModel):
 
 
 class CommandRequest(BaseModel):
+    instance_name: str = Field(min_length=1)
     action: Literal["lamp", "fan"]
     value: Union[bool, int]
 

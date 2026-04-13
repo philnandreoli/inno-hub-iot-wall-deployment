@@ -8,8 +8,13 @@ class Settings(BaseSettings):
     # Azure Event Grid MQTT broker settings
     eventgrid_mqtt_hostname: str = ""
     eventgrid_mqtt_port: int = 8883
-    instance_name: str = "default"
+    # Redis cache
+    redis_url: str = "redis://localhost:6379"
+    # Device state cache TTL
     state_cache_ttl_seconds: int = 15
+    # Optional: comma-separated Azure subscription IDs to search for AIO instances.
+    # If empty, all subscriptions accessible to the credential are searched.
+    azure_subscription_ids: str = ""
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

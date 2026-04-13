@@ -1,27 +1,26 @@
 {
   "name": "IoT Chat App Dev",
 
-  // Universal image includes Python 3.11, Node 20, Azure CLI, and common tools.
-  // Works identically in VS Code local Dev Containers and GitHub Codespaces.
-  "image": "mcr.microsoft.com/devcontainers/universal:2",
+  // Docker Compose brings up the app container (universal image) alongside a
+  // Redis 7 sidecar.  Works identically in VS Code local Dev Containers and
+  // GitHub Codespaces.
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
 
-  // Ensure the correct Python and Node versions are active in the universal image.
-  "containerEnv": {
-    "PYTHON_VERSION": "3.11",
-    "NODE_VERSION": "20"
-  },
-
-  "forwardPorts": [3000, 5000, 8888],
+  "forwardPorts": [3000, 5000, 6379, 8888],
   "portsAttributes": {
     "3000": { "label": "Frontend (Vite)", "onAutoForward": "notify" },
     "5000": { "label": "Backend (FastAPI)", "onAutoForward": "notify" },
+    "6379": { "label": "Redis", "onAutoForward": "silent" },
     "8888": { "label": "Jupyter / misc", "onAutoForward": "silent" }
   },
 
   // Install Python and Node dependencies after the container is created.
   // The script also writes src/chat-app/backend/.env from any env vars that are
   // already set (Codespaces secrets or locally forwarded remoteEnv values).
-  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postCreateCommand": "bash /workspace/.devcontainer/post-create.sh",
 
   "customizations": {
     "vscode": {
@@ -67,6 +66,6 @@
     "EVENTHOUSE_MCP_ENDPOINT":  "${localEnv:EVENTHOUSE_MCP_ENDPOINT}",
     "EVENTGRID_MQTT_HOSTNAME":  "${localEnv:EVENTGRID_MQTT_HOSTNAME}",
     "EVENTGRID_MQTT_PORT":      "${localEnv:EVENTGRID_MQTT_PORT}",
-    "INSTANCE_NAME":            "${localEnv:INSTANCE_NAME}"
+    "AZURE_SUBSCRIPTION_IDS":   "${localEnv:AZURE_SUBSCRIPTION_IDS}"
   }
 }

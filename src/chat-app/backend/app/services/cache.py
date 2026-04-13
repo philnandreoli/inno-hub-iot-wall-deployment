@@ -1,3 +1,4 @@
+import json
 import logging
 import time
 from typing import Any, Optional
@@ -30,3 +31,40 @@ class TTLCache:
 
     def clear(self) -> None:
         self._store.clear()
+
+
+class RedisCache:
+    """Redis-backed cache with TTL. Falls back gracefully if Redis is unavailable."""
+
+    def __init__(self, redis_client, ttl_seconds: int = 15, key_prefix: str = "cache"):
+        self._redis = redis_client
+        self.ttl = ttl_seconds
+        self._prefix = key_prefix
+
+    def _key(self, key: str) -> str:
+        return f"{self._prefix}:{key}"
+
+    async def get(self, key: str):
+        try:
+            raw = await self._redis.get(self._key(key))
+            if raw is not None:
+                logger.debug("Redis cache HIT: %s", key)
+                return json.loads(raw)
+            logger.debug("Redis cache MISS: %s", key)
+            return None
+        except Exception as exc:
+            logger.warning("Redis GET error (falling back to None): %s", exc)
+            return None
+
+    async def set(self, key: str, value) -> None:
+        try:
+            await self._redis.set(self._key(key), json.dumps(value), ex=self.ttl)
+            logger.debug("Redis cache SET: %s TTL=%ss", key, self.ttl)
+        except Exception as exc:
+            logger.warning("Redis SET error (skipping cache): %s", exc)
+
+    async def invalidate(self, key: str) -> None:
+        try:
+            await self._redis.delete(self._key(key))
+        except Exception as exc:
+            logger.warning("Redis DELETE error: %s", exc)

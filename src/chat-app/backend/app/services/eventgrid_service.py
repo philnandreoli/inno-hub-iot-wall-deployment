@@ -38,7 +38,6 @@ class EventGridMQTTService:
 
         self.hostname: str = settings.eventgrid_mqtt_hostname
         self.port: int = settings.eventgrid_mqtt_port
-        self._base_topic: str = f"iotoperations/{settings.instance_name}/commands"
         self._credential = get_credential()
 
     # ------------------------------------------------------------------
@@ -46,14 +45,14 @@ class EventGridMQTTService:
     # ------------------------------------------------------------------
 
     async def publish_command(
-        self, device_id: str, action: str, value: Union[bool, int]
+        self, device_id: str, action: str, value: Union[bool, int], instance_name: str
     ) -> bool:
         """Validate and publish a device command via MQTT.
 
         Returns True on success; raises on validation or publish failure.
         """
         payload = self._validate_and_build_payload(action=action, value=value)
-        topic = f"{self._base_topic}/{device_id}"
+        topic = f"iotoperations/{instance_name}/commands/{device_id}"
         message = json.dumps(payload)
 
         logger.info(
