@@ -1,0 +1,37 @@
+.app {
+  text-align: center;
+  padding: 2rem;
+  max-width: 600px;
+}
+
+.app h1 {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+  color: #38bdf8;
+}
+
+.app p {
+  color: #94a3b8;
+  margin-bottom: 1.5rem;
+}
+
+.app button {
+  background: #0284c7;
+  color: #fff;
+  border: none;
+  padding: 0.6rem 1.4rem;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.app button:hover {
+  background: #0369a1;
+}
+
+.health-status {
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  color: #a3e635;
+}

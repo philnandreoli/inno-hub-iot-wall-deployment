@@ -1,0 +1,47 @@
+{
+  "name": "IoT Chat App Dev",
+  "image": "mcr.microsoft.com/devcontainers/universal:2",
+
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.11" },
+    "ghcr.io/devcontainers/features/node:1": { "version": "20" }
+  },
+
+  "forwardPorts": [3000, 5000, 8888],
+  "portsAttributes": {
+    "3000": { "label": "Frontend (Vite)", "onAutoForward": "notify" },
+    "5000": { "label": "Backend (FastAPI)", "onAutoForward": "notify" },
+    "8888": { "label": "Jupyter / misc", "onAutoForward": "silent" }
+  },
+
+  "postCreateCommand": "cd src/chat-app/backend && pip install -r requirements.txt && cd ../frontend && npm install",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.pylance",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-vscode.azure-account",
+        "ms-azuretools.vscode-azurefunctions"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "[python]": {
+          "editor.defaultFormatter": "ms-python.pylance"
+        }
+      }
+    }
+  },
+
+  "remoteEnv": {
+    "AZURE_OPENAI_ENDPOINT": "${localEnv:AZURE_OPENAI_ENDPOINT}",
+    "AZURE_OPENAI_DEPLOYMENT": "${localEnv:AZURE_OPENAI_DEPLOYMENT}",
+    "EVENTHOUSE_MCP_ENDPOINT": "${localEnv:EVENTHOUSE_MCP_ENDPOINT}",
+    "EVENTGRID_ENDPOINT": "${localEnv:EVENTGRID_ENDPOINT}",
+    "INSTANCE_NAME": "${localEnv:INSTANCE_NAME}"
+  }
+}

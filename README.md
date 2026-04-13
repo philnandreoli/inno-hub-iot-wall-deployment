@@ -8,6 +8,13 @@ This repository contains automated deployment scripts for Azure IoT Operations o
 inno-hub-iot-wall-deployment/
 ├── README.md                    # This file
 ├── LICENSE
+├── .devcontainer/               # VS Code DevContainer configuration
+│   └── devcontainer.json
+├── src/
+│   └── chat-app/                # LLM-powered device operations chat app
+│       ├── backend/             # Python FastAPI backend (port 5000)
+│       ├── frontend/            # React + Vite frontend (port 3000)
+│       └── shared/              # Cross-cutting types & API contracts
 ├── v1/                          # Version 1: Direct deployment on host
 │   ├── README.md
 │   ├── step1-fix-networking.sh
@@ -119,6 +126,77 @@ inno-hub-iot-wall-deployment/
 - The host is **shared** with other workloads
 
 **Best for:** Production deployments, multi-tenant scenarios, environments requiring isolation, testing/development
+
+## 💬 Chat Application (`src/chat-app/`)
+
+The `src/chat-app/` directory contains an LLM-powered device operations chat
+application for Azure IoT Operations. Operators can interact with IoT devices
+using natural language – the assistant queries live telemetry via Eventhouse
+(KQL) and dispatches commands through Azure Event Grid, backed by Azure OpenAI.
+
+### Application Purpose
+
+- **Natural-language device control** – ask questions like _"What is the current
+  temperature on line 3?"_ or _"Restart the Beckhoff controller"_.
+- **Real-time telemetry awareness** – the backend queries Eventhouse for live
+  device state before responding.
+- **Auditable command dispatch** – all device commands are published as
+  CloudEvents to Azure Event Grid and processed by IoT Operations.
+
+### Running Locally
+
+**Backend (FastAPI on port 5000)**
+
+```bash
+cd src/chat-app/backend
+
+# Create and activate a virtual environment (recommended)
+python -m venv .venv && source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Copy and populate environment variables
+cp .env.example .env   # fill in Azure endpoints
+
+# Start the API server with hot-reload
+uvicorn app.main:app --reload --port 5000
+```
+
+**Frontend (React + Vite on port 3000)**
+
+```bash
+cd src/chat-app/frontend
+
+# Install Node dependencies
+npm install
+
+# Start the Vite dev server (proxies /api/* → port 5000)
+npm run dev
+```
+
+Open <http://localhost:3000> in your browser. The health endpoint is available
+at <http://localhost:5000/health> and interactive API docs at
+<http://localhost:5000/docs>.
+
+### Required Environment Variables
+
+Copy `src/chat-app/backend/.env.example` to `src/chat-app/backend/.env` and
+fill in the values:
+
+| Variable | Description |
+|---|---|
+| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI service endpoint |
+| `AZURE_OPENAI_DEPLOYMENT` | Model deployment name (e.g. `gpt-4o`) |
+| `EVENTHOUSE_MCP_ENDPOINT` | Eventhouse MCP query endpoint |
+| `EVENTGRID_ENDPOINT` | Azure Event Grid namespace endpoint |
+| `INSTANCE_NAME` | Azure IoT Operations instance name |
+
+> **DevContainer:** Open this repository in VS Code with the Remote-Containers
+> extension – the `.devcontainer/devcontainer.json` configuration will install
+> all dependencies automatically and forward the required ports.
+
+---
 
 ## 🚀 Quick Start
 
