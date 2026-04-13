@@ -8,6 +8,8 @@ Start locally:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.routers import chat_router, commands_router, devices_router
+
 app = FastAPI(
     title="IoT Wall Chat App API",
     description="LLM-powered device operations chat backend for Azure IoT Operations.",
@@ -27,10 +29,15 @@ app.add_middleware(
 @app.get("/health", tags=["ops"])
 async def health_check() -> dict:
     """Liveness probe – returns service status."""
-    return {"status": "ok", "service": "iot-wall-chat-api"}
+    return {"status": "ok"}
 
 
 @app.get("/", tags=["ops"])
 async def root() -> dict:
     """Root redirect hint."""
     return {"message": "IoT Wall Chat API. See /docs for the OpenAPI interface."}
+
+
+app.include_router(chat_router)
+app.include_router(devices_router)
+app.include_router(commands_router)
