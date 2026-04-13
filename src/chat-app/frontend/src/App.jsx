@@ -1,33 +1,52 @@
-import { useState } from 'react'
-import './App.css'
+import './App.css';
+import { ChatProvider } from './context/ChatContext';
+import ChatWindow from './components/ChatWindow';
+import DeviceSelector from './components/DeviceSelector';
+import DeviceStatePanel from './components/DeviceStatePanel';
+import CommandPanel from './components/CommandPanel';
 
 /**
- * App – placeholder shell for the IoT Wall Chat interface.
+ * App — full operator layout for the IoT Wall Chat application.
  *
- * This component will be replaced by the full chat UI once the
- * LLM device-operations chat feature is implemented (EPIC-001).
+ * Layout (CSS Grid):
+ * ┌──────────────────────────────────────────────────────┐
+ * │  Header                                               │
+ * ├────────────────┬─────────────────────────────────────┤
+ * │  Sidebar       │  Chat Window                        │
+ * │  - Devices     │  - Messages                         │
+ * │  - State       │  - Input                            │
+ * │  - Commands    │                                     │
+ * └────────────────┴─────────────────────────────────────┘
  */
 function App() {
-  const [health, setHealth] = useState(null)
-
-  async function checkBackend() {
-    try {
-      const res = await fetch('/health')
-      const data = await res.json()
-      setHealth(data.status === 'ok' ? '✅ Backend reachable' : '⚠️ Unexpected response')
-    } catch {
-      setHealth('❌ Backend unreachable – is it running on port 5000?')
-    }
-  }
-
   return (
-    <div className="app">
-      <h1>IoT Wall Chat</h1>
-      <p>LLM-powered device operations assistant for Azure IoT Operations.</p>
-      <button onClick={checkBackend}>Check backend health</button>
-      {health && <p className="health-status">{health}</p>}
-    </div>
-  )
+    <ChatProvider>
+      <div className="app-layout">
+        {/* Header */}
+        <header className="app-header" role="banner">
+          <h1 className="app-header__title">
+            <span className="app-header__icon" aria-hidden="true">⚙</span>
+            IoT Operations Chat
+          </h1>
+          <span className="app-header__subtitle">
+            LLM-powered device operations assistant
+          </span>
+        </header>
+
+        {/* Sidebar */}
+        <aside className="app-sidebar" aria-label="Device controls">
+          <DeviceSelector />
+          <DeviceStatePanel />
+          <CommandPanel />
+        </aside>
+
+        {/* Main chat area */}
+        <main className="app-main">
+          <ChatWindow />
+        </main>
+      </div>
+    </ChatProvider>
+  );
 }
 
-export default App
+export default App;
