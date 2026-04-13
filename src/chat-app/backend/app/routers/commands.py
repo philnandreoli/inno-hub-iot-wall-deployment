@@ -3,7 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.schemas.command import CommandRequest, CommandResponse
-from app.services.eventgrid_service import EventGridService, get_eventgrid_service
+from app.services.eventgrid_service import EventGridMQTTService, get_eventgrid_service
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api", tags=["commands"])
 async def publish_command(
     deviceId: str,
     payload: CommandRequest,
-    service: EventGridService = Depends(get_eventgrid_service),
+    service: EventGridMQTTService = Depends(get_eventgrid_service),
 ) -> CommandResponse:
     try:
         await service.publish_command(deviceId, payload.action, payload.value)

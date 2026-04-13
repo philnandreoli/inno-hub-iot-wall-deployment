@@ -1,10 +1,14 @@
 {
   "name": "IoT Chat App Dev",
+
+  // Universal image includes Python 3.11, Node 20, Azure CLI, and common tools.
+  // Works identically in VS Code local Dev Containers and GitHub Codespaces.
   "image": "mcr.microsoft.com/devcontainers/universal:2",
 
-  "features": {
-    "ghcr.io/devcontainers/features/python:1": { "version": "3.11" },
-    "ghcr.io/devcontainers/features/node:1": { "version": "20" }
+  // Ensure the correct Python and Node versions are active in the universal image.
+  "containerEnv": {
+    "PYTHON_VERSION": "3.11",
+    "NODE_VERSION": "20"
   },
 
   "forwardPorts": [3000, 5000, 8888],
@@ -14,34 +18,55 @@
     "8888": { "label": "Jupyter / misc", "onAutoForward": "silent" }
   },
 
-  "postCreateCommand": "cd src/chat-app/backend && pip install -r requirements.txt && cd ../frontend && npm install",
+  // Install Python and Node dependencies after the container is created.
+  // The script also writes src/chat-app/backend/.env from any env vars that are
+  // already set (Codespaces secrets or locally forwarded remoteEnv values).
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
 
   "customizations": {
     "vscode": {
       "extensions": [
         "ms-python.python",
         "ms-python.pylance",
+        "ms-python.black-formatter",
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
         "ms-vscode.azure-account",
-        "ms-azuretools.vscode-azurefunctions"
+        "ms-azuretools.vscode-azurefunctions",
+        "GitHub.codespaces"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "esbenp.prettier-vscode",
         "[python]": {
-          "editor.defaultFormatter": "ms-python.pylance"
+          "editor.defaultFormatter": "ms-python.black-formatter"
         }
       }
     }
   },
 
+  // -----------------------------------------------------------------------
+  // Environment variables
+  //
+  // LOCAL VS CODE DEV CONTAINERS
+  //   Set these variables in your host shell (e.g., ~/.bashrc / ~/.zshrc)
+  //   before opening the project in VS Code.  ${localEnv:VAR} reads from
+  //   the host environment and forwards the value into the container.
+  //
+  // GITHUB CODESPACES
+  //   Add the same variable names as Codespaces secrets at:
+  //     https://github.com/settings/codespaces  (user-level)
+  //   or via the repository's Settings → Secrets → Codespaces (repo-level).
+  //   Codespaces secrets are injected directly into the container environment
+  //   so ${localEnv:VAR} resolves them transparently — no extra steps needed.
+  // -----------------------------------------------------------------------
   "remoteEnv": {
-    "AZURE_OPENAI_ENDPOINT": "${localEnv:AZURE_OPENAI_ENDPOINT}",
-    "AZURE_OPENAI_DEPLOYMENT": "${localEnv:AZURE_OPENAI_DEPLOYMENT}",
-    "EVENTHOUSE_MCP_ENDPOINT": "${localEnv:EVENTHOUSE_MCP_ENDPOINT}",
-    "EVENTGRID_ENDPOINT": "${localEnv:EVENTGRID_ENDPOINT}",
-    "INSTANCE_NAME": "${localEnv:INSTANCE_NAME}"
+    "AZURE_OPENAI_ENDPOINT":    "${localEnv:AZURE_OPENAI_ENDPOINT}",
+    "AZURE_OPENAI_DEPLOYMENT":  "${localEnv:AZURE_OPENAI_DEPLOYMENT}",
+    "EVENTHOUSE_MCP_ENDPOINT":  "${localEnv:EVENTHOUSE_MCP_ENDPOINT}",
+    "EVENTGRID_MQTT_HOSTNAME":  "${localEnv:EVENTGRID_MQTT_HOSTNAME}",
+    "EVENTGRID_MQTT_PORT":      "${localEnv:EVENTGRID_MQTT_PORT}",
+    "INSTANCE_NAME":            "${localEnv:INSTANCE_NAME}"
   }
 }

@@ -23,7 +23,7 @@ Confirm all of the following before starting the DevContainer:
   - [ ] `AZURE_OPENAI_ENDPOINT`
   - [ ] `AZURE_OPENAI_DEPLOYMENT`
   - [ ] `EVENTHOUSE_MCP_ENDPOINT`
-  - [ ] `EVENTGRID_ENDPOINT`
+  - [ ] `EVENTGRID_MQTT_HOSTNAME`
   - [ ] `INSTANCE_NAME`
 
 ---
@@ -264,7 +264,7 @@ before continuing with the manual scenarios.
 | Limitation | Notes |
 |---|---|
 | **Device state requires EventHouse** | If `EVENTHOUSE_MCP_ENDPOINT` is not set or the endpoint is unreachable, all device state queries return `"State unavailable"`. The chat still functions for general queries. |
-| **EventGrid publishes require Azure access** | Commands will fail with a service error if `EVENTGRID_ENDPOINT` is not set or the identity lacks the **EventGrid Data Sender** role. The UI displays a user-friendly error rather than a raw exception. |
+| **EventGrid publishes require Azure access** | Commands will fail with a service error if `EVENTGRID_MQTT_HOSTNAME` is not set or the identity lacks the **EventGrid Data Sender** role. The UI displays a user-friendly error rather than a raw exception. |
 | **Tool-calling path requires Azure OpenAI** | If `AZURE_OPENAI_ENDPOINT` or `AZURE_OPENAI_DEPLOYMENT` is not set, all chat requests will fail at the backend. |
 | **Local credential expiry** | `DefaultAzureCredential` falls back to `az login` credentials locally. If the token expires (typically after 1 hour of inactivity), re-run `az login` inside the container. |
 | **In-memory conversation state** | Conversation history is stored in memory on the backend process. Restarting the backend resets all conversations. |

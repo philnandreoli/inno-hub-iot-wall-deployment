@@ -68,16 +68,21 @@ environment (see Section 6).
 > `EVENTHOUSE_MCP_ENDPOINT/call-tool`. The service must be network-reachable from wherever
 > the backend runs.
 
-### Azure Event Grid
+### Azure Event Grid MQTT Broker
 
 | Property | Value |
 |---|---|
-| Resource type | Custom Topic or Namespace Topic |
-| Topic path convention | `/iotoperations/{instanceName}/commands` (derived from `INSTANCE_NAME`) |
-| Event schema | CloudEvents 1.0 |
-| Event type | `com.iotoperations.device.command` |
+| Resource type | `Microsoft.EventGrid/namespaces` (EventGrid Namespace with MQTT broker enabled) |
+| MQTT hostname | `<namespace>.<region>-1.ts.eventgrid.azure.net` |
+| Port | `8883` (MQTTS / TLS) |
+| Topic convention | `iotoperations/{instanceName}/commands/{deviceId}` (derived from `INSTANCE_NAME`) |
+| Auth | Azure AD access token (`DefaultAzureCredential` scope: `https://eventgrid.azure.net/.default`) |
 | Required RBAC role | **EventGrid Data Sender** |
 | Assigned to | Managed Identity principal (or developer's Entra ID for local dev) |
+
+> The backend connects to the MQTT broker using `paho-mqtt`, authenticating with
+> a short-lived Azure AD bearer token as the MQTT password (username = broker hostname).
+> No SAS keys or connection strings are used.
 
 ---
 
@@ -91,7 +96,8 @@ values before starting the backend.
 | `AZURE_OPENAI_ENDPOINT` | Azure OpenAI resource endpoint | `https://{name}.openai.azure.com/` |
 | `AZURE_OPENAI_DEPLOYMENT` | Deployment name for the chat model | `gpt-4o` |
 | `EVENTHOUSE_MCP_ENDPOINT` | EventHouse MCP REST base URL | `https://{host}/v1` |
-| `EVENTGRID_ENDPOINT` | EventGrid topic or namespace endpoint | `https://{name}.eventgrid.azure.net` |
+| `EVENTGRID_MQTT_HOSTNAME` | EventGrid Namespace MQTT broker hostname | `{namespace}.{region}-1.ts.eventgrid.azure.net` |
+| `EVENTGRID_MQTT_PORT` | MQTT broker port (TLS) | `8883` |
 | `INSTANCE_NAME` | IoT Operations instance name | `myinstance` |
 | `STATE_CACHE_TTL_SECONDS` | Device state cache TTL in seconds (5–30) | `15` |
 
@@ -163,52 +169,53 @@ Navigate to `http://localhost:5000/docs` to see the interactive API explorer.
 
 ## 5. DevContainer Setup
 
-The repository ships with a fully configured DevContainer at `.devcontainer/devcontainer.json`.
+The repository ships with a fully configured DevContainer at `.devcontainer/devcontainer.json`
+that works identically in **VS Code local Dev Containers** and **GitHub Codespaces**.
 
-### Prerequisites
+### VS Code Local Dev Containers
+
+#### Prerequisites
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (running)
 - [Visual Studio Code](https://code.visualstudio.com/)
 - [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) (`ms-vscode-remote.remote-containers`)
 
-### Steps
+#### Steps
 
 1. Open the repository root in VS Code.
 2. When prompted *"Folder contains a Dev Container configuration"*, click **Reopen in Container**.
    Alternatively, open the Command Palette (`Ctrl/Cmd+Shift+P`) and run
    **Dev Containers: Reopen in Container**.
 3. VS Code builds the container image (first run takes a few minutes).
-4. The `postCreateCommand` runs automatically and installs all dependencies:
-   ```
-   cd src/chat-app/backend && pip install -r requirements.txt
-   cd ../frontend && npm install
-   ```
+4. The `postCreateCommand` (`.devcontainer/post-create.sh`) runs automatically and:
+   - Installs Python backend dependencies (`pip install -r requirements.txt`)
+   - Installs Node frontend dependencies (`npm install`)
+   - Writes `src/chat-app/backend/.env` from any environment variables already set on the host
+
 5. Configure environment variables using **one of these two methods**:
 
    **Method A — Host environment variables (recommended)**
 
-   Set the variables in your host shell before opening VS Code. The DevContainer maps them
-   via `${localEnv:…}` in `devcontainer.json`:
+   Set the variables in your host shell before opening VS Code.  The DevContainer maps them
+   via `${localEnv:…}` in `devcontainer.json` and the `post-create.sh` script writes them
+   into `.env` automatically:
 
-   ```jsonc
-   // .devcontainer/devcontainer.json (already configured)
-   "remoteEnv": {
-     "AZURE_OPENAI_ENDPOINT":      "${localEnv:AZURE_OPENAI_ENDPOINT}",
-     "AZURE_OPENAI_DEPLOYMENT":    "${localEnv:AZURE_OPENAI_DEPLOYMENT}",
-     "EVENTHOUSE_MCP_ENDPOINT":    "${localEnv:EVENTHOUSE_MCP_ENDPOINT}",
-     "EVENTGRID_ENDPOINT":         "${localEnv:EVENTGRID_ENDPOINT}",
-     "INSTANCE_NAME":              "${localEnv:INSTANCE_NAME}"
-   }
+   ```bash
+   export AZURE_OPENAI_ENDPOINT="https://{name}.openai.azure.com/"
+   export AZURE_OPENAI_DEPLOYMENT="gpt-4o"
+   export EVENTHOUSE_MCP_ENDPOINT="https://{host}/v1"
+   export EVENTGRID_MQTT_HOSTNAME="{namespace}.{region}-1.ts.eventgrid.azure.net"
+   export INSTANCE_NAME="myinstance"
    ```
 
    **Method B — `.env` file inside the container**
 
-   Create `src/chat-app/backend/.env` in the integrated terminal after the container
-   starts (the file is git-ignored):
+   Edit the auto-generated file in the integrated terminal after the container starts
+   (the file is git-ignored):
 
    ```bash
-   cp src/chat-app/backend/.env.example src/chat-app/backend/.env
-   # Then edit the file with your values
+   # .env is created automatically by post-create.sh — just fill in the blank values
+   nano src/chat-app/backend/.env
    ```
 
 6. Authenticate with Azure from the integrated terminal:
@@ -228,6 +235,58 @@ The repository ships with a fully configured DevContainer at `.devcontainer/devc
    ```
 
 Ports 3000 and 5000 are automatically forwarded and VS Code will notify you when they open.
+
+---
+
+### GitHub Codespaces
+
+Codespaces uses the same `devcontainer.json` — no separate configuration is needed.
+
+#### Prerequisites
+
+- A GitHub account with access to this repository
+- The repository visible at `github.com/<org>/inno-hub-iot-wall-deployment`
+
+#### Configuring secrets
+
+Codespaces secrets are injected into the container as environment variables.  Set the
+following secrets **before** creating a Codespace so that `post-create.sh` can write
+them to `.env` automatically:
+
+| Secret name | Where to set |
+|---|---|
+| `AZURE_OPENAI_ENDPOINT` | [User secrets](https://github.com/settings/codespaces) or repo → Settings → Secrets → Codespaces |
+| `AZURE_OPENAI_DEPLOYMENT` | Same as above |
+| `EVENTHOUSE_MCP_ENDPOINT` | Same as above |
+| `EVENTGRID_MQTT_HOSTNAME` | Same as above |
+| `EVENTGRID_MQTT_PORT` | Same as above (optional; defaults to `8883`) |
+| `INSTANCE_NAME` | Same as above |
+
+#### Steps
+
+1. Navigate to the repository on GitHub.
+2. Click **Code → Codespaces → Create codespace on `<branch>`**.
+3. Wait for the Codespace to build (first run ~3–5 minutes).
+4. `post-create.sh` runs automatically and writes `.env` from the secrets you configured.
+5. Authenticate with Azure CLI from the integrated terminal:
+
+   ```bash
+   az login --use-device-code
+   # Follow the device-code flow — works inside any browser-accessible Codespace
+   ```
+
+6. Start the services:
+
+   ```bash
+   # Terminal 1 — Backend
+   cd src/chat-app/backend && uvicorn app.main:app --reload --port 5000
+
+   # Terminal 2 — Frontend
+   cd src/chat-app/frontend && npm run dev
+   ```
+
+7. Codespaces automatically forwards ports 3000 and 5000.  Click the notification or open
+   the **Ports** panel and click the globe icon next to port 3000 to open the app.
 
 ---
 
@@ -255,8 +314,9 @@ No configuration is required — the correct provider is selected automatically.
 
 | Environment | Credential Flow |
 |---|---|
-| **Local Dev** | `AzureCliCredential` — token from `az login` session (DefaultAzureCredential falls through to this automatically) |
-| **DevContainer** | `AzureCliCredential` — either `az login` run inside the container, or host env vars passed via `${localEnv:…}` used with `EnvironmentCredential` |
+| **Local Dev** | `AzureCliCredential` — token from `az login` session |
+| **DevContainer (local)** | `AzureCliCredential` — `az login` run inside the container, or host env vars forwarded via `${localEnv:…}` → `EnvironmentCredential` |
+| **GitHub Codespaces** | `AzureCliCredential` — `az login --use-device-code` inside the Codespace terminal |
 | **Azure Hosted** (VM, AKS, Container Apps) | `ManagedIdentityCredential` — MSI endpoint resolves the system-assigned or user-assigned identity automatically |
 
 ### Why No Connection Strings or Keys Are Needed
@@ -285,7 +345,7 @@ SUBSCRIPTION_ID="<your-subscription-id>"
 RESOURCE_GROUP="<your-resource-group>"
 MI_NAME="<your-managed-identity-name>"
 AOAI_ACCOUNT_NAME="<your-openai-account-name>"
-EG_TOPIC_NAME="<your-eventgrid-topic-name>"
+EG_NAMESPACE_NAME="<your-eventgrid-namespace-name>"
 
 # ── Get the Managed Identity's principal ID ───────────────────────────────────
 PRINCIPAL_ID=$(az identity show \
@@ -302,11 +362,11 @@ az role assignment create \
   --assignee "$PRINCIPAL_ID" \
   --scope "/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.CognitiveServices/accounts/${AOAI_ACCOUNT_NAME}"
 
-# ── Azure Event Grid ─────────────────────────────────────────────────────────
+# ── Azure Event Grid Namespace (MQTT broker) ──────────────────────────────────
 az role assignment create \
   --role "EventGrid Data Sender" \
   --assignee "$PRINCIPAL_ID" \
-  --scope "/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.EventGrid/topics/${EG_TOPIC_NAME}"
+  --scope "/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP}/providers/Microsoft.EventGrid/namespaces/${EG_NAMESPACE_NAME}"
 ```
 
 > **Note:** Role assignment propagation can take 2–5 minutes. If you receive a `403`
