@@ -69,6 +69,30 @@ jobs:
         with:
           context: src/chat-app/frontend
           push: true
+          build-args: |
+            VITE_AZURE_CLIENT_ID=${{ vars.VITE_AZURE_CLIENT_ID }}
+            VITE_AZURE_TENANT_ID=${{ vars.VITE_AZURE_TENANT_ID }}
+            VITE_AZURE_API_SCOPE=${{ vars.VITE_AZURE_API_SCOPE }}
           tags: |
             ${{ secrets.ACR_HOSTNAME }}/iot-wall-frontend:${{ github.sha }}
             ${{ secrets.ACR_HOSTNAME }}/iot-wall-frontend:latest
+
+  deploy-dev:
+    needs: docker-build
+    runs-on: ubuntu-latest
+    environment: dev
+
+    steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Container Apps
+        run: |
+          az containerapp update \
+            --name ${{ vars.FRONTEND_CONTAINER_APP_NAME }} \
+            --resource-group ${{ vars.RESOURCE_GROUP }} \
+            --image ${{ secrets.ACR_HOSTNAME }}/iot-wall-frontend:${{ github.sha }}

@@ -1,5 +1,9 @@
 FROM node:22-alpine AS build
 
+ARG VITE_AZURE_CLIENT_ID
+ARG VITE_AZURE_TENANT_ID
+ARG VITE_AZURE_API_SCOPE
+
 WORKDIR /app
 
 COPY package.json package-lock.json* ./

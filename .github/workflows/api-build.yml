@@ -84,3 +84,33 @@ jobs:
           tags: |
             ${{ secrets.ACR_HOSTNAME }}/iot-wall-api:${{ github.sha }}
             ${{ secrets.ACR_HOSTNAME }}/iot-wall-api:latest
+
+  deploy-dev:
+    needs: docker-build
+    runs-on: ubuntu-latest
+    environment: dev
+
+    steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy to Container Apps
+        run: |
+          az containerapp update \
+            --name ${{ vars.API_CONTAINER_APP_NAME }} \
+            --resource-group ${{ vars.RESOURCE_GROUP }} \
+            --set-env-vars \
+              AZURE_TENANT_ID=${{ vars.APP_AZURE_TENANT_ID }} \
+              AZURE_CLIENT_ID=${{ vars.APP_AZURE_CLIENT_ID }} \
+              AZURE_EVENTGRID_MQTT_HOST=${{ vars.AZURE_EVENTGRID_MQTT_HOST }} \
+              AZURE_EVENTGRID_MQTT_PORT=${{ vars.AZURE_EVENTGRID_MQTT_PORT }} \
+              AZURE_EVENTGRID_MQTT_CLIENT_ID=${{ vars.AZURE_EVENTGRID_MQTT_CLIENT_ID }} \
+              MQTT_QOS=${{ vars.MQTT_QOS }} \
+              MQTT_RESPONSE_TOPIC=${{ vars.MQTT_RESPONSE_TOPIC }} \
+              FABRIC_EVENTHOUSE_QUERY_URI=${{ vars.FABRIC_EVENTHOUSE_QUERY_URI }} \
+              FABRIC_EVENTHOUSE_DATABASE=${{ vars.FABRIC_EVENTHOUSE_DATABASE }} \
+            --image ${{ secrets.ACR_HOSTNAME }}/iot-wall-api:${{ github.sha }}

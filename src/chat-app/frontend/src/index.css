@@ -1735,6 +1735,28 @@ body::after {
   fill: var(--text-muted);
 }
 
+.zoom-reset-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  margin-left: 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  vertical-align: middle;
+}
+
+.zoom-reset-btn:hover {
+  background: rgba(0, 229, 255, 0.18);
+  border-color: rgba(0, 229, 255, 0.5);
+}
+
 .telemetry-cursor-dot {
   filter: drop-shadow(0 0 6px var(--cyan-glow-strong));
 }

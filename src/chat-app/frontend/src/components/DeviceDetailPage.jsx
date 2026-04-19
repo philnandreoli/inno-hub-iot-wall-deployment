@@ -120,6 +120,9 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
   const [telemetryLoading, setTelemetryLoading] = useState(true)
   const [telemetryError, setTelemetryError] = useState(null)
   const [telemetryRefreshKey, setTelemetryRefreshKey] = useState(0)
+  const [zoomRange, setZoomRange] = useState(null)
+  const [brushAnchor, setBrushAnchor] = useState(null)
+  const [brushCurrent, setBrushCurrent] = useState(null)
 
   const activeWindow = WINDOW_OPTIONS.find(w => w.key === windowKey) ?? WINDOW_OPTIONS[3]
 
@@ -158,12 +161,18 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
 
   useEffect(() => {
     setHoveredPointIndex(null)
+    setZoomRange(null)
   }, [activeMetric, windowKey])
 
   const graphSeries = useMemo(
     () => buildMetricSeries(telemetryData, activeMetric, activeWindow.ms),
     [telemetryData, activeMetric, activeWindow.ms],
   )
+
+  const visibleSeries = useMemo(() => {
+    if (!zoomRange) return graphSeries
+    return graphSeries.filter(p => p.ts >= zoomRange.minTs && p.ts <= zoomRange.maxTs)
+  }, [graphSeries, zoomRange])
 
   // Build overlay event series for fan/lamp
   const overlaySeries = useMemo(() => {
@@ -184,25 +193,27 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
 
   const chartWidth = 1200
   const chartHeight = 420
-  const chartPaddingX = 40
+  const chartPaddingLeft = 64
+  const chartPaddingRight = 40
   const chartPaddingTop = 16
   const chartPaddingBottom = 46
-  const pointCount = graphSeries.length
+  const pointCount = visibleSeries.length
 
-  const metricValues = graphSeries.map(p => p[activeMetric])
+  const metricValues = visibleSeries.map(p => p[activeMetric])
   const rawMinValue = pointCount > 0 ? Math.min(...metricValues) : 0
   const rawMaxValue = pointCount > 0 ? Math.max(...metricValues) : 1
   const hasRange = rawMaxValue - rawMinValue > 0
-  const paddedMinValue = hasRange ? rawMinValue : rawMinValue - 0.5
-  const paddedMaxValue = hasRange ? rawMaxValue : rawMaxValue + 0.5
+  const rangeBuffer = hasRange ? (rawMaxValue - rawMinValue) * 0.08 : 0.5
+  const paddedMinValue = rawMinValue - rangeBuffer
+  const paddedMaxValue = rawMaxValue + rangeBuffer
   const valueSpan = paddedMaxValue - paddedMinValue || 1
 
   const plotHeight = chartHeight - chartPaddingTop - chartPaddingBottom
-  const plotWidth = chartWidth - chartPaddingX * 2
+  const plotWidth = chartWidth - chartPaddingLeft - chartPaddingRight
 
-  const points = graphSeries.map((point, index) => {
+  const points = visibleSeries.map((point, index) => {
     const x =
-      chartPaddingX +
+      chartPaddingLeft +
       (pointCount <= 1 ? 0 : (index / (pointCount - 1)) * plotWidth)
     const normalized = (point[activeMetric] - paddedMinValue) / valueSpan
     const y = chartPaddingTop + plotHeight - normalized * plotHeight
@@ -238,6 +249,20 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
   const isTemperatureColored = tempColorSegments !== null && tempColorSegments.length > 0
 
   // Area fill path
+  // Y-axis ticks — pick ~5 evenly spaced values
+  const yAxisTicks = useMemo(() => {
+    if (pointCount < 2) return []
+    const tickCount = 5
+    const ticks = []
+    for (let i = 0; i < tickCount; i++) {
+      const ratio = i / (tickCount - 1)
+      const value = paddedMinValue + ratio * valueSpan
+      const y = chartPaddingTop + plotHeight - ratio * plotHeight
+      ticks.push({ y, label: value.toFixed(1) })
+    }
+    return ticks
+  }, [paddedMinValue, valueSpan, plotHeight, pointCount, chartPaddingTop])
+
   const areaBottom = chartPaddingTop + plotHeight
   const areaD = points.length > 1
     ? pathD + ` L ${points[points.length - 1].x.toFixed(2)} ${areaBottom} L ${points[0].x.toFixed(2)} ${areaBottom} Z`
@@ -275,6 +300,13 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
     return { color }
   }
 
+  const tempBadgeStyle = (val) => {
+    if (!Number.isFinite(val)) return {}
+    if (val <= 92) return { color: '#22b14c', background: 'rgba(34, 177, 76, 0.12)', borderColor: 'rgba(34, 177, 76, 0.3)' }
+    if (val <= 107) return { color: '#e6a800', background: 'rgba(230, 168, 0, 0.12)', borderColor: 'rgba(230, 168, 0, 0.3)' }
+    return { color: '#e60026', background: 'rgba(230, 0, 38, 0.12)', borderColor: 'rgba(230, 0, 38, 0.3)' }
+  }
+
   const formatTimestamp = (ts) => {
     if (!ts) return 'No data'
     return new Date(ts).toLocaleString([], {
@@ -286,17 +318,55 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
     })
   }
 
+  const getPlotRatio = (event) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    const screenRatio = (event.clientX - rect.left) / rect.width
+    const svgX = screenRatio * chartWidth
+    return Math.max(0, Math.min(1, (svgX - chartPaddingLeft) / plotWidth))
+  }
+
+  const handleChartMouseDown = (event) => {
+    if (points.length < 2) return
+    event.preventDefault()
+    const ratio = getPlotRatio(event)
+    setBrushAnchor(ratio)
+    setBrushCurrent(ratio)
+  }
+
   const handleChartMouseMove = (event) => {
     if (points.length === 0) return
-    const rect = event.currentTarget.getBoundingClientRect()
-    const clampedX = Math.max(0, Math.min(rect.width, event.clientX - rect.left))
-    const ratio = rect.width > 0 ? clampedX / rect.width : 0
-    const nearestIndex = Math.round(ratio * (points.length - 1))
-    setHoveredPointIndex(nearestIndex)
+    const ratio = getPlotRatio(event)
+    if (brushAnchor !== null) {
+      setBrushCurrent(ratio)
+    } else {
+      const nearestIndex = Math.round(ratio * (points.length - 1))
+      setHoveredPointIndex(nearestIndex)
+    }
+  }
+
+  const handleChartMouseUp = () => {
+    if (brushAnchor !== null && brushCurrent !== null && points.length >= 2) {
+      const r1 = Math.min(brushAnchor, brushCurrent)
+      const r2 = Math.max(brushAnchor, brushCurrent)
+      if (r2 - r1 > 0.03) {
+        const minTs = points[0].ts
+        const maxTs = points[points.length - 1].ts
+        const tsSpan = maxTs - minTs
+        setZoomRange({
+          minTs: minTs + r1 * tsSpan,
+          maxTs: minTs + r2 * tsSpan,
+        })
+        setHoveredPointIndex(null)
+      }
+    }
+    setBrushAnchor(null)
+    setBrushCurrent(null)
   }
 
   const handleChartLeave = () => {
     setHoveredPointIndex(null)
+    setBrushAnchor(null)
+    setBrushCurrent(null)
   }
 
   return (
@@ -319,7 +389,7 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
         </div>
         <div className="detail-header-badges">
           {statusRecord && getTemperature(statusRecord) !== null && (
-            <div className="detail-temp-badge">
+            <div className="detail-temp-badge" style={tempBadgeStyle(getTemperature(statusRecord))}>
               <span aria-hidden="true">🌡</span>
               <span>{getTemperature(statusRecord).toFixed(1)}°F</span>
             </div>
@@ -354,7 +424,11 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
             <div className="telemetry-label">Live Telemetry</div>
             <div className="telemetry-title">
               {deviceName} · Temperature (F)
-              {overlays.length > 0 && ` + ${overlays.map(k => getMetricLabel(k)).join(', ')}`}
+              {zoomRange && (
+                <button type="button" className="zoom-reset-btn" onClick={() => setZoomRange(null)}>
+                  ✕ Reset Zoom
+                </button>
+              )}
             </div>
           </div>
           <div className="telemetry-controls">
@@ -394,7 +468,14 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
           </div>
         </div>
 
-        <div className="telemetry-chart-wrap detail-chart-wrap" onMouseMove={handleChartMouseMove} onMouseLeave={handleChartLeave}>
+        <div
+          className="telemetry-chart-wrap detail-chart-wrap"
+          onMouseDown={handleChartMouseDown}
+          onMouseMove={handleChartMouseMove}
+          onMouseUp={handleChartMouseUp}
+          onMouseLeave={handleChartLeave}
+          style={{ cursor: points.length > 1 ? 'crosshair' : undefined, userSelect: 'none' }}
+        >
           {telemetryLoading ? (
             <div className="telemetry-empty">
               <span className="spinner" style={{ width: 20, height: 20, borderWidth: 2 }} />
@@ -427,11 +508,41 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
               ) : (
                 <path className="telemetry-path" d={pathD} />
               )}
+              {/* Y-axis line */}
+              <line
+                x1={chartPaddingLeft}
+                y1={chartPaddingTop}
+                x2={chartPaddingLeft}
+                y2={chartPaddingTop + plotHeight}
+                stroke="var(--border-mid)"
+                strokeWidth="1"
+              />
+              {/* Y-axis ticks */}
+              {yAxisTicks.map((tick, i) => (
+                <g key={`y-${i}`}>
+                  <line
+                    x1={chartPaddingLeft - 6}
+                    y1={tick.y}
+                    x2={chartPaddingLeft}
+                    y2={tick.y}
+                    stroke="var(--border-mid)"
+                    strokeWidth="1"
+                  />
+                  <text
+                    x={chartPaddingLeft - 10}
+                    y={tick.y + 3}
+                    textAnchor="end"
+                    className="chart-axis-label"
+                  >
+                    {tick.label}
+                  </text>
+                </g>
+              ))}
               {/* X-axis baseline */}
               <line
-                x1={chartPaddingX}
+                x1={chartPaddingLeft}
                 y1={chartPaddingTop + plotHeight}
-                x2={chartWidth - chartPaddingX}
+                x2={chartWidth - chartPaddingRight}
                 y2={chartPaddingTop + plotHeight}
                 stroke="var(--border-mid)"
                 strokeWidth="1"
@@ -482,8 +593,8 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
                 }
                 return transitions.map((evt, i) => {
                   const xRatio = (evt.ts - minTs) / tsSpan
-                  const x = chartPaddingX + xRatio * plotWidth
-                  if (x < chartPaddingX || x > chartWidth - chartPaddingX) return null
+                  const x = chartPaddingLeft + xRatio * plotWidth
+                  if (x < chartPaddingLeft || x > chartWidth - chartPaddingRight) return null
                   const markerY = chartPaddingTop + plotHeight - 10
                   const color = evt.isOn ? overlay.config.onColor : overlay.config.offColor
                   return (
@@ -515,6 +626,21 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
                   )
                 })
               })}
+              {/* Brush selection rectangle */}
+              {brushAnchor !== null && brushCurrent !== null && (
+                <rect
+                  x={chartPaddingLeft + Math.min(brushAnchor, brushCurrent) * plotWidth}
+                  y={chartPaddingTop}
+                  width={Math.abs(brushCurrent - brushAnchor) * plotWidth}
+                  height={plotHeight}
+                  fill="var(--cyan)"
+                  opacity="0.1"
+                  stroke="var(--cyan)"
+                  strokeWidth="1"
+                  strokeDasharray="4 3"
+                  pointerEvents="none"
+                />
+              )}
               {/* Hover crosshair + cursor dot */}
               {cursorPoint && (
                 <>
