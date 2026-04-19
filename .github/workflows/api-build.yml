@@ -1,0 +1,86 @@
+name: API Build & Test
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/chat-app/backend/**"
+      - ".github/workflows/api-build.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/chat-app/backend/**"
+      - ".github/workflows/api-build.yml"
+
+permissions:
+  id-token: write
+  contents: read
+
+defaults:
+  run:
+    working-directory: src/chat-app/backend
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version: ["3.11"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: src/chat-app/backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: python -m pytest tests/ -v
+
+      - name: Verify app starts
+        run: |
+          timeout 5 uvicorn main:app --host 127.0.0.1 --port 8000 &
+          sleep 2
+          curl -f http://127.0.0.1:8000/health || exit 1
+
+  docker-build:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: dev
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: az acr login --name ${{ secrets.ACR_HOSTNAME }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: src/chat-app/backend
+          push: true
+          tags: |
+            ${{ secrets.ACR_HOSTNAME }}/iot-wall-api:${{ github.sha }}
+            ${{ secrets.ACR_HOSTNAME }}/iot-wall-api:latest
