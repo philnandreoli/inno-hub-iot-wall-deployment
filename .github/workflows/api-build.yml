@@ -99,6 +99,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy to Container Apps
+        working-directory: .
         run: |
           az containerapp update \
             --name ${{ vars.API_CONTAINER_APP_NAME }} \
