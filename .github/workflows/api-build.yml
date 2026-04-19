@@ -82,6 +82,7 @@ jobs:
           context: src/chat-app/backend
           push: true
           platforms: linux/amd64
+          provenance: false
           tags: |
             ${{ secrets.ACR_HOSTNAME }}/iot-wall-api:${{ github.sha }}
             ${{ secrets.ACR_HOSTNAME }}/iot-wall-api:latest
