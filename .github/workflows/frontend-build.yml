@@ -91,6 +91,7 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Deploy to Container Apps
+        working-directory: .
         run: |
           az containerapp update \
             --name ${{ vars.FRONTEND_CONTAINER_APP_NAME }} \
