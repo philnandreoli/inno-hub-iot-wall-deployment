@@ -1,4 +1,4 @@
-FROM node:22-alpine AS build
+FROM --platform=linux/amd64 node:22-alpine AS build
 
 ARG VITE_AZURE_CLIENT_ID
 ARG VITE_AZURE_TENANT_ID
@@ -12,7 +12,7 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM nginx:alpine
+FROM --platform=linux/amd64 nginx:alpine
 
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf

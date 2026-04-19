@@ -69,6 +69,7 @@ jobs:
         with:
           context: src/chat-app/frontend
           push: true
+          platforms: linux/amd64
           build-args: |
             VITE_AZURE_CLIENT_ID=${{ vars.VITE_AZURE_CLIENT_ID }}
             VITE_AZURE_TENANT_ID=${{ vars.VITE_AZURE_TENANT_ID }}
