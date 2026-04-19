@@ -1,0 +1,41 @@
+import os
+from dataclasses import dataclass
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+@dataclass(frozen=True)
+class Settings:
+    azure_tenant_id: str
+    azure_client_id: str
+    azure_eventgrid_mqtt_host: str
+    azure_eventgrid_mqtt_port: int
+    azure_eventgrid_mqtt_client_id: str
+    mqtt_qos: int
+    mqtt_response_topic: str
+    fabric_eventhouse_query_uri: str
+    fabric_eventhouse_database: str
+    fabric_eventhouse_query_retries: int
+
+    @classmethod
+    def from_env(cls) -> "Settings":
+        return cls(
+            azure_tenant_id=os.getenv("AZURE_TENANT_ID", "common"),
+            azure_client_id=os.getenv("AZURE_CLIENT_ID", "").strip(),
+            azure_eventgrid_mqtt_host=os.getenv("AZURE_EVENTGRID_MQTT_HOST", "").strip(),
+            azure_eventgrid_mqtt_port=int(os.getenv("AZURE_EVENTGRID_MQTT_PORT", "8883")),
+            azure_eventgrid_mqtt_client_id=os.getenv("AZURE_EVENTGRID_MQTT_CLIENT_ID", "").strip(),
+            mqtt_qos=int(os.getenv("MQTT_QOS", "1")),
+            mqtt_response_topic=os.getenv(
+                "MQTT_RESPONSE_TOPIC",
+                "azure-iot-operations/responses/beckhoff-controller",
+            ).strip(),
+            fabric_eventhouse_query_uri=os.getenv("FABRIC_EVENTHOUSE_QUERY_URI", "").strip(),
+            fabric_eventhouse_database=os.getenv("FABRIC_EVENTHOUSE_DATABASE", "").strip(),
+            fabric_eventhouse_query_retries=max(
+                int(os.getenv("FABRIC_EVENTHOUSE_QUERY_RETRIES", "5")),
+                1,
+            ),
+        )

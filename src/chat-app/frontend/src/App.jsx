@@ -1,0 +1,301 @@
+import { useState, useEffect, useLayoutEffect, useCallback } from 'react'
+import { useIsAuthenticated, useMsal } from '@azure/msal-react'
+import { InteractionStatus } from '@azure/msal-browser'
+import { Header } from './components/Header.jsx'
+import { DeviceGrid } from './components/DeviceGrid.jsx'
+import { DeviceDetailPage } from './components/DeviceDetailPage.jsx'
+import { ToastContainer } from './components/ToastContainer.jsx'
+import { LoginPage } from './components/LoginPage.jsx'
+import { useToast } from './useToast.js'
+import { fetchDevicesByHub, fetchAllDevicesStatus, setMsalInstance } from './api.js'
+
+const POLL_INTERVAL = 30_000 // 30 seconds
+const THEME_STORAGE_KEY = 'iot-control-theme'
+
+export default function App() {
+  const isAuthenticated = useIsAuthenticated()
+  const { instance, inProgress } = useMsal()
+
+  const [devices, setDevices] = useState([])       // from /api/devices/by-hub
+  const [statusMap, setStatusMap] = useState({})   // deviceName → record
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [lastUpdated, setLastUpdated] = useState(null)
+  const { toasts, addToast } = useToast()
+  const [currentPage, setCurrentPage] = useState(1)
+  const [selectedDevice, setSelectedDevice] = useState(null)
+  const [theme, setTheme] = useState(() => {
+    if (typeof window === 'undefined') return 'dark'
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY)
+    return stored === 'light' ? 'light' : 'dark'
+  })
+
+  // Hand the MSAL instance to the api module so every fetch gets a Bearer token.
+  const [authReady, setAuthReady] = useState(false)
+  useEffect(() => {
+    if (isAuthenticated) {
+      setMsalInstance(instance)
+      setAuthReady(true)
+    }
+  }, [isAuthenticated, instance])
+
+  useLayoutEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    document.documentElement.style.colorScheme = theme
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme)
+  }, [theme])
+
+  // Build statusMap from the all-devices-status endpoint
+  const buildStatusMap = useCallback((statusPayload) => {
+    const map = {}
+    const list = statusPayload?.devices ?? []
+    for (const item of list) {
+      // Try all possible name fields
+      const names = [
+        item.iotInstanceName,
+        item.deviceName,
+        item.DeviceName,
+        item.device_name,
+        item.Device,
+        item.device,
+        item.name,
+        item.Name,
+      ].filter(n => n && typeof n === 'string')
+      
+      // Index by all variations (original and lowercase)
+      for (const name of names) {
+        map[name] = item
+        map[name.toLowerCase()] = item
+      }
+    }
+    return map
+  }, [])
+
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [hubsPayload, statusPayload] = await Promise.all([
+        fetchDevicesByHub(),
+        fetchAllDevicesStatus(),
+      ])
+      setDevices(hubsPayload.devicesByHub ?? [])
+      setStatusMap(buildStatusMap(statusPayload))
+      setLastUpdated(new Date())
+    } catch (e) {
+      setError(e.message)
+    } finally {
+      setLoading(false)
+    }
+  }, [buildStatusMap])
+
+  // Initial load — wait until auth is ready so the token is available
+  useEffect(() => {
+    if (authReady) loadData()
+  }, [authReady, loadData])
+
+  // Auto-refresh poll — only start after auth is ready
+  useEffect(() => {
+    if (!authReady) return
+    const id = setInterval(loadData, POLL_INTERVAL)
+    return () => clearInterval(id)
+  }, [authReady, loadData])
+
+  // Helper to get device name
+  const getDeviceName = (device) => {
+    if (!device) return 'Unknown'
+    let name = device.iotInstanceName ?? device.deviceName ?? device.DeviceName ?? device.device_name ?? device.Device ?? device.device ?? device.name ?? device.Name ?? null
+    if (!name) {
+      for (const [key, val] of Object.entries(device)) {
+        if (typeof val === 'string' && val.length > 0 && !key.toLowerCase().includes('hub')) {
+          name = val
+          break
+        }
+      }
+    }
+    return name || 'Unknown'
+  }
+
+  // Derived stats
+  const totalDevices = devices.length
+  const hubs = new Set(
+    devices.map(d => d.hubName ?? d.HubName ?? d.hub ?? d.Hub ?? ''),
+  ).size
+  const lampsOn = devices.filter(d => {
+    const name = getDeviceName(d)
+    const r = statusMap[name] ?? statusMap[name.toLowerCase()]
+    const v = r?.isLampOn ?? r?.lamp ?? r?.Lamp
+    return v === true || v === 'true' || v === 1 || v === '1'
+  }).length
+  const fansOn = devices.filter(d => {
+    const name = getDeviceName(d)
+    const r = statusMap[name] ?? statusMap[name.toLowerCase()]
+    const v = r?.fanOnOrOff ?? r?.fanOnOff ?? r?.fan ?? r?.Fan ?? r?.fanSpeed ?? r?.FanSpeed
+    if (v === undefined || v === null) return false
+    if (typeof v === 'boolean') return v
+    if (typeof v === 'number') return v > 0
+    return parseFloat(v) > 0
+  }).length
+
+  const connectionOk = !error && lastUpdated !== null
+
+  const formatTime = d =>
+    d
+      ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      : '—'
+
+  const handleToggleTheme = () => {
+    setTheme(prev => (prev === 'dark' ? 'light' : 'dark'))
+  }
+
+  // Update status for a specific device after a command
+  const handleStatusUpdate = useCallback((deviceName, newRecord) => {
+    setStatusMap(prev => ({
+      ...prev,
+      [deviceName]: newRecord,
+      [deviceName.toLowerCase()]: newRecord,
+    }))
+  }, [])
+
+  // Show login page when not authenticated (skip during redirect processing)
+  if (!isAuthenticated && inProgress === InteractionStatus.None) {
+    return <LoginPage />
+  }
+
+  // Show nothing while MSAL processes a redirect
+  if (!isAuthenticated) {
+    return null
+  }
+
+  const activeAccount = instance.getActiveAccount()
+
+  return (
+    <div className="app-wrapper">
+      <Header
+        connectionOk={connectionOk}
+        loading={loading}
+        onRefresh={loadData}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
+        userName={activeAccount?.name}
+        onSignOut={() => instance.logoutRedirect()}
+      />
+
+      <main className="main-content">
+        {selectedDevice ? (
+          <DeviceDetailPage
+            device={selectedDevice}
+            statusRecord={
+              (() => {
+                const name = getDeviceName(selectedDevice)
+                return statusMap[name] ?? statusMap[name.toLowerCase()] ?? null
+              })()
+            }
+            onBack={() => setSelectedDevice(null)}
+            onToast={addToast}
+            onStatusUpdate={handleStatusUpdate}
+          />
+        ) : (
+          <>
+            {/* Section header */}
+            <div className="section-header">
+              <div className="section-title-group">
+                <span className="section-label">// Live Operations</span>
+                <h1 className="section-title">Device Control</h1>
+              </div>
+              <span className="last-updated">
+                Last sync: {formatTime(lastUpdated)}
+              </span>
+            </div>
+
+            {/* Stats bar */}
+            {!error && totalDevices > 0 && (
+              <div className="stats-bar">
+                <div className="stat-item">
+                  <span className="stat-label">Total Devices</span>
+                  <span className="stat-value cyan">{totalDevices}</span>
+                </div>
+                <div className="stat-divider" />
+                <div className="stat-item">
+                  <span className="stat-label">Hubs</span>
+                  <span className="stat-value cyan">{hubs}</span>
+                </div>
+                <div className="stat-divider" />
+                <div className="stat-item">
+                  <span className="stat-label">Lamps On</span>
+                  <span className="stat-value green">{lampsOn}</span>
+                </div>
+                <div className="stat-divider" />
+                <div className="stat-item">
+                  <span className="stat-label">Fans Active</span>
+                  <span className="stat-value amber">{fansOn}</span>
+                </div>
+                <div className="stat-divider" />
+                <div className="stat-item">
+                  <span className="stat-label">Lamps Off</span>
+                  <span className="stat-value red">{totalDevices - lampsOn}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Loading */}
+            {loading && devices.length === 0 && (
+              <div className="state-panel">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" strokeWidth="1.5">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 6v6l4 2" />
+                </svg>
+                <h3>Connecting</h3>
+                <p>Establishing connection to IoT Operations backend...</p>
+                <div className="spinner" style={{ width: 28, height: 28, borderWidth: 3, color: 'var(--cyan)' }} />
+              </div>
+            )}
+
+            {/* Error */}
+            {error && (
+              <div className="state-panel">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="1.5">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+                <h3>Connection Error</h3>
+                <p>{error}</p>
+                <button className="retry-btn" onClick={loadData}>
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {/* Empty */}
+            {!loading && !error && devices.length === 0 && (
+              <div className="state-panel">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" strokeWidth="1.5">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <path d="M9 9h6M9 12h6M9 15h4" />
+                </svg>
+                <h3>No Devices Found</h3>
+                <p>No devices were returned by the backend. Check your Eventhouse configuration.</p>
+              </div>
+            )}
+
+            {/* Device Grid */}
+            {!error && devices.length > 0 && (
+              <DeviceGrid
+                devicesByHub={devices}
+                statusMap={statusMap}
+                onToast={addToast}
+                onStatusUpdate={handleStatusUpdate}
+                onSelectDevice={setSelectedDevice}
+                currentPage={currentPage}
+                onPageChange={setCurrentPage}
+              />
+            )}
+          </>
+        )}
+      </main>
+
+      <ToastContainer toasts={toasts} />
+    </div>
+  )
+}

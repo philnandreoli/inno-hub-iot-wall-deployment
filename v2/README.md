@@ -642,6 +642,42 @@ chmod +x step7-leuze-controller-deployment.sh
 
 ---
 
+## Enhancements
+
+### Create the Command-And-Control Dataflow Profile
+**Script:** `enhancements/create-command-and-control-dataflow-profile.sh`
+
+**Purpose:** Enumerates Azure IoT Operations instances in one subscription and creates the `command-and-control` dataflow profile with instance count `1` when that profile does not already exist.
+
+**What it does:**
+- Uses the current Azure CLI login context or an explicit `--subscription-id`
+- Lists Azure IoT Operations instances in the selected subscription
+- Checks each instance for an existing `command-and-control` dataflow profile
+- Creates the profile only when it is missing
+
+**Run on:** Any Linux machine with Azure CLI access to the subscription
+
+**Usage:**
+```bash
+chmod +x enhancements/create-command-and-control-dataflow-profile.sh
+./enhancements/create-command-and-control-dataflow-profile.sh --subscription-id <SUBSCRIPTION_ID>
+```
+
+**Optional Filters:**
+```bash
+./enhancements/create-command-and-control-dataflow-profile.sh \
+  --subscription-id <SUBSCRIPTION_ID> \
+  --instance-name <IOT_OPERATIONS_INSTANCE_NAME> \
+  --resource-group <RESOURCE_GROUP>
+```
+
+**Prerequisites:**
+- Azure CLI installed
+- Logged in with `az login`
+- Permission to list IoT Operations instances and manage dataflow profiles
+
+---
+
 ## Deployment Sequence
 
 **IMPORTANT:** Execute scripts in order:

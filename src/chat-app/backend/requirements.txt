@@ -1,0 +1,10 @@
+fastapi==0.115.12
+uvicorn==0.34.2
+paho-mqtt==2.1.0
+python-dotenv==1.0.1
+azure-identity==1.19.0
+azure-kusto-data==4.5.1
+PyJWT==2.9.0
+cryptography==44.0.0
+pytest==8.3.5
+httpx==0.28.1
