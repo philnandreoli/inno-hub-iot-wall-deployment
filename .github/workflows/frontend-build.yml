@@ -98,4 +98,6 @@ jobs:
           az containerapp update \
             --name ${{ vars.FRONTEND_CONTAINER_APP_NAME }} \
             --resource-group ${{ vars.RESOURCE_GROUP }} \
+            --set-env-vars \
+              BACKEND_URL=${{ vars.BACKEND_URL }} \
             --image ${{ secrets.ACR_HOSTNAME }}/iot-wall-frontend:${{ github.sha }}
