@@ -166,23 +166,6 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
           <div className="control-row-label">Lamp Control</div>
           <div className={`control-buttons${lampOn !== null ? ' has-active' : ''}`}>
             <button
-              className={`ctrl-btn on-btn${lampOn === true ? ' active' : ''}`}
-              disabled={!!lampBusy}
-              onClick={() =>
-                handleCmd(
-                  () => sendLampOn(deviceName),
-                  setLampBusy,
-                  'on',
-                  `Lamp ON → ${deviceName}`,
-                  'Lamp ON failed',
-                  true,
-                )
-              }
-            >
-              {lampBusy === 'on' ? <span className="spinner" /> : null}
-              ◉ ON
-            </button>
-            <button
               className={`ctrl-btn off-btn${lampOn === false ? ' active' : ''}`}
               disabled={!!lampBusy}
               onClick={() =>
@@ -199,6 +182,23 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
               {lampBusy === 'off' ? <span className="spinner" /> : null}
               ○ OFF
             </button>
+            <button
+              className={`ctrl-btn on-btn${lampOn === true ? ' active' : ''}`}
+              disabled={!!lampBusy}
+              onClick={() =>
+                handleCmd(
+                  () => sendLampOn(deviceName),
+                  setLampBusy,
+                  'on',
+                  `Lamp ON → ${deviceName}`,
+                  'Lamp ON failed',
+                  true,
+                )
+              }
+            >
+              {lampBusy === 'on' ? <span className="spinner" /> : null}
+              ◉ ON
+            </button>
           </div>
         </div>
 
@@ -206,23 +206,6 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
         <div className="control-row">
           <div className="control-row-label">Fan Control</div>
           <div className={`control-buttons${fanOn !== null ? ' has-active' : ''}`}>
-            <button
-              className={`ctrl-btn on-btn${fanOn === true ? ' active' : ''}`}
-              disabled={!!fanBusy}
-              onClick={() =>
-                handleCmd(
-                  () => sendFanOn(deviceName),
-                  setFanBusy,
-                  'on',
-                  `Fan ON → ${deviceName}`,
-                  'Fan ON failed',
-                  true,
-                )
-              }
-            >
-              {fanBusy === 'on' ? <span className="spinner" /> : null}
-              ◎ ON
-            </button>
             <button
               className={`ctrl-btn off-btn${fanOn === false ? ' active' : ''}`}
               disabled={!!fanBusy}
@@ -239,6 +222,23 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
             >
               {fanBusy === 'off' ? <span className="spinner" /> : null}
               ○ OFF
+            </button>
+            <button
+              className={`ctrl-btn on-btn${fanOn === true ? ' active' : ''}`}
+              disabled={!!fanBusy}
+              onClick={() =>
+                handleCmd(
+                  () => sendFanOn(deviceName),
+                  setFanBusy,
+                  'on',
+                  `Fan ON → ${deviceName}`,
+                  'Fan ON failed',
+                  true,
+                )
+              }
+            >
+              {fanBusy === 'on' ? <span className="spinner" /> : null}
+              ◎ ON
             </button>
           </div>
         </div>

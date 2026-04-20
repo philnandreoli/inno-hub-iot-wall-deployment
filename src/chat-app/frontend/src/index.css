@@ -1692,6 +1692,10 @@ body::after {
   background: transparent;
 }
 
+.device-card--embedded .blink-patterns {
+  flex-wrap: nowrap;
+}
+
 .detail-controls-section .device-card:hover {
   transform: none;
   box-shadow: none;
