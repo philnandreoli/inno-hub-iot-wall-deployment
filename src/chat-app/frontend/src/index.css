@@ -1594,14 +1594,15 @@ body::after {
   display: flex;
   align-items: center;
   gap: 4px;
-  background: rgba(255, 23, 68, 0.12);
-  border: 1px solid rgba(255, 23, 68, 0.3);
-  border-radius: var(--radius-sm);
-  padding: 5px 10px;
   font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--red);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--amber);
+  padding: 3px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--amber-glow);
+  background: var(--amber-glow);
 }
 
 .detail-online-badge {

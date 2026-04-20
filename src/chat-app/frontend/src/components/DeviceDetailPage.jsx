@@ -389,7 +389,7 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
         </div>
         <div className="detail-header-badges">
           {statusRecord && getTemperature(statusRecord) !== null && (
-            <div className="detail-temp-badge" style={tempBadgeStyle(getTemperature(statusRecord))}>
+            <div className="detail-temp-badge">
               <span aria-hidden="true">🌡</span>
               <span>{getTemperature(statusRecord).toFixed(1)}°F</span>
             </div>
