@@ -74,7 +74,7 @@ function getDeviceName(device) {
   return name || 'Unknown'
 }
 
-export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCommandComplete, embedded }) {
+export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCommandComplete, onSelectDevice, embedded }) {
   const [lampBusy, setLampBusy] = useState(null)
   const [fanBusy, setFanBusy] = useState(null)
   const [blinkBusy, setBlinkBusy] = useState(false)
@@ -129,7 +129,20 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
                 hub · <span>{hubName}</span>
               </div>
             )}
-            <div className="device-name">{deviceName}</div>
+            <div
+              className="device-name"
+              role="button"
+              tabIndex={0}
+              onClick={() => onSelectDevice && onSelectDevice(device)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onSelectDevice && onSelectDevice(device)
+                }
+              }}
+              aria-label={`View details for ${deviceName}`}
+              style={{ cursor: onSelectDevice ? 'pointer' : 'default' }}
+            >{deviceName}</div>
           </div>
           <div className="card-header-right">
             {temperature !== null && (

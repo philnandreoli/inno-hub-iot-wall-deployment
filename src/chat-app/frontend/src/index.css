@@ -663,7 +663,6 @@ body::after {
 
 .device-card-trigger {
   border-radius: var(--radius-lg);
-  cursor: pointer;
   outline: none;
 }
 
@@ -747,6 +746,11 @@ body::after {
   letter-spacing: 0.06em;
   color: var(--text-primary);
   text-transform: uppercase;
+}
+
+.device-name[role="button"]:hover {
+  text-decoration: underline;
+  color: var(--accent);
 }
 
 .device-hub {

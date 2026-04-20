@@ -62,18 +62,8 @@ export function DeviceGrid({
             <div
               key={dName}
               className="device-card-trigger"
-              role="button"
-              tabIndex={0}
-              onClick={() => onSelectDevice(device)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault()
-                  onSelectDevice(device)
-                }
-              }}
-              aria-label={`View details for ${dName}`}
             >
-              <DeviceCard device={device} statusRecord={status} onToast={onToast} onStatusUpdate={onStatusUpdate} />
+              <DeviceCard device={device} statusRecord={status} onToast={onToast} onStatusUpdate={onStatusUpdate} onSelectDevice={onSelectDevice} />
             </div>
           )
         })}
