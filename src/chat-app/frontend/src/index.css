@@ -816,11 +816,9 @@ body::after {
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--amber);
   padding: 3px 10px;
   border-radius: 10px;
-  border: 1px solid var(--amber-glow);
-  background: var(--amber-glow);
+  border: 1px solid;
 }
 
 .temp-icon {
@@ -1598,11 +1596,9 @@ body::after {
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--amber);
   padding: 3px 10px;
   border-radius: 10px;
-  border: 1px solid var(--amber-glow);
-  background: var(--amber-glow);
+  border: 1px solid;
 }
 
 .detail-online-badge {

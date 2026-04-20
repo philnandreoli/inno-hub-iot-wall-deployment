@@ -92,6 +92,13 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
   const hasStatus = !!statusRecord
   const isOnline = hasStatus
 
+  function tempBadgeStyle(val) {
+    if (!Number.isFinite(val)) return {}
+    if (val <= 92) return { color: '#22b14c', background: 'rgba(34, 177, 76, 0.12)', borderColor: 'rgba(34, 177, 76, 0.3)' }
+    if (val <= 107) return { color: '#e6a800', background: 'rgba(230, 168, 0, 0.12)', borderColor: 'rgba(230, 168, 0, 0.3)' }
+    return { color: '#e60026', background: 'rgba(230, 0, 38, 0.12)', borderColor: 'rgba(230, 0, 38, 0.3)' }
+  }
+
   async function handleCmd(fn, setbusy, busyLabel, successMsg, errorMsg, shouldRefresh = false) {
     setbusy(busyLabel)
     try {
@@ -146,7 +153,7 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
           </div>
           <div className="card-header-right">
             {temperature !== null && (
-              <div className="device-temp">
+              <div className="device-temp" style={tempBadgeStyle(temperature)}>
                 <span className="temp-icon" aria-hidden="true">🌡</span>
                 <span className="temp-value">{temperature.toFixed(1)}°F</span>
               </div>
