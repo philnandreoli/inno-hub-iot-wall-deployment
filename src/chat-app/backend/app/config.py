@@ -22,8 +22,8 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         return cls(
-            azure_tenant_id=os.getenv("AZURE_TENANT_ID", "common"),
-            azure_client_id=os.getenv("AZURE_CLIENT_ID", "").strip(),
+            azure_tenant_id=os.getenv("APP_AZURE_TENANT_ID", os.getenv("AZURE_TENANT_ID", "common")),
+            azure_client_id=os.getenv("APP_AZURE_CLIENT_ID", os.getenv("AZURE_CLIENT_ID", "")).strip(),
             azure_eventgrid_mqtt_host=os.getenv("AZURE_EVENTGRID_MQTT_HOST", "").strip(),
             azure_eventgrid_mqtt_port=int(os.getenv("AZURE_EVENTGRID_MQTT_PORT", "8883")),
             azure_eventgrid_mqtt_client_id=os.getenv("AZURE_EVENTGRID_MQTT_CLIENT_ID", "").strip(),

@@ -29,7 +29,7 @@ class MqttPublisher:
         self._access_token = ""
         self._token_expires_on = 0
 
-        self.credential = DefaultAzureCredential()
+        self.credential = DefaultAzureCredential(exclude_environment_credential=True)
         stable_client_id = settings.azure_eventgrid_mqtt_client_id or self._default_client_id()
 
         self.client = mqtt.Client(

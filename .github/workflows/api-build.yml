@@ -107,8 +107,8 @@ jobs:
             --name ${{ vars.API_CONTAINER_APP_NAME }} \
             --resource-group ${{ vars.RESOURCE_GROUP }} \
             --set-env-vars \
-              AZURE_TENANT_ID=${{ vars.APP_AZURE_TENANT_ID }} \
-              AZURE_CLIENT_ID=${{ vars.APP_AZURE_CLIENT_ID }} \
+              APP_AZURE_TENANT_ID=${{ vars.APP_AZURE_TENANT_ID }} \
+              APP_AZURE_CLIENT_ID=${{ vars.APP_AZURE_CLIENT_ID }} \
               AZURE_EVENTGRID_MQTT_HOST=${{ vars.AZURE_EVENTGRID_MQTT_HOST }} \
               AZURE_EVENTGRID_MQTT_PORT=${{ vars.AZURE_EVENTGRID_MQTT_PORT }} \
               AZURE_EVENTGRID_MQTT_CLIENT_ID=${{ vars.AZURE_EVENTGRID_MQTT_CLIENT_ID }} \

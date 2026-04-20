@@ -18,7 +18,7 @@ class EventhouseStatusReader:
         self.query_uri = settings.fabric_eventhouse_query_uri
         self.database = settings.fabric_eventhouse_database
         self.query_retries = settings.fabric_eventhouse_query_retries
-        self.credential = DefaultAzureCredential()
+        self.credential = DefaultAzureCredential(exclude_environment_credential=True)
         self._client: KustoClient | None = None
 
     def _get_client(self) -> KustoClient:
