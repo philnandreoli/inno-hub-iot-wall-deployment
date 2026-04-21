@@ -3,8 +3,13 @@ import ReactDOM from 'react-dom/client'
 import { PublicClientApplication, EventType } from '@azure/msal-browser'
 import { MsalProvider } from '@azure/msal-react'
 import { msalConfig } from './authConfig.js'
+import { initTelemetry } from './telemetry.js'
+import { ErrorBoundary } from './components/ErrorBoundary.jsx'
 import App from './App.jsx'
 import './index.css'
+
+// Initialize Application Insights early so it captures page load metrics
+initTelemetry()
 
 const msalInstance = new PublicClientApplication(msalConfig)
 
@@ -18,9 +23,11 @@ msalInstance.addEventCallback((event) => {
 function renderApp() {
   ReactDOM.createRoot(document.getElementById('root')).render(
     <React.StrictMode>
-      <MsalProvider instance={msalInstance}>
-        <App />
-      </MsalProvider>
+      <ErrorBoundary>
+        <MsalProvider instance={msalInstance}>
+          <App />
+        </MsalProvider>
+      </ErrorBoundary>
     </React.StrictMode>,
   )
 }

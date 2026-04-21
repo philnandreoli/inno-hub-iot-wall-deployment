@@ -8,6 +8,7 @@ import { ToastContainer } from './components/ToastContainer.jsx'
 import { LoginPage } from './components/LoginPage.jsx'
 import { useToast } from './useToast.js'
 import { fetchDevicesByHub, fetchAllDevicesStatus, setMsalInstance } from './api.js'
+import { setAuthenticatedUser, clearAuthenticatedUser, trackEvent, trackException } from './telemetry.js'
 
 const POLL_INTERVAL = 30_000 // 30 seconds
 const THEME_STORAGE_KEY = 'iot-control-theme'
@@ -36,6 +37,16 @@ export default function App() {
     if (isAuthenticated) {
       setMsalInstance(instance)
       setAuthReady(true)
+      // Set authenticated user for Application Insights tracking
+      const account = instance.getActiveAccount()
+      if (account) {
+        setAuthenticatedUser(
+          account.localAccountId || account.homeAccountId,
+          account.name || account.username,
+        )
+      }
+    } else {
+      clearAuthenticatedUser()
     }
   }, [isAuthenticated, instance])
 
@@ -84,6 +95,7 @@ export default function App() {
       setLastUpdated(new Date())
     } catch (e) {
       setError(e.message)
+      trackException(e, { source: 'loadData' })
     } finally {
       setLoading(false)
     }
