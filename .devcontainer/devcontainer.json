@@ -12,7 +12,11 @@
 		"ghcr.io/devcontainers/features/node:1": {
 			"version": "lts"
 		}
-	}
+	},
+	"runArgs": [
+		"--dns=8.8.8.8",
+		"--dns=8.8.4.4"
+	]
 
 	// Features to add to the dev container. More info: https://containers.dev/features.
 	// "features": {},

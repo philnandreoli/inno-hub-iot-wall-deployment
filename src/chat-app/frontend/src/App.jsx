@@ -7,7 +7,7 @@ import { DeviceDetailPage } from './components/DeviceDetailPage.jsx'
 import { ToastContainer } from './components/ToastContainer.jsx'
 import { LoginPage } from './components/LoginPage.jsx'
 import { useToast } from './useToast.js'
-import { fetchDevicesByHub, fetchAllDevicesStatus, setMsalInstance } from './api.js'
+import { fetchAllDevicesStatus, setMsalInstance } from './api.js'
 import { setAuthenticatedUser, clearAuthenticatedUser, trackEvent, trackException } from './telemetry.js'
 
 const POLL_INTERVAL = 30_000 // 30 seconds
@@ -17,7 +17,7 @@ export default function App() {
   const isAuthenticated = useIsAuthenticated()
   const { instance, inProgress } = useMsal()
 
-  const [devices, setDevices] = useState([])       // from /api/devices/by-hub
+  const [devices, setDevices] = useState([])       // from /api/devices/commands/status
   const [statusMap, setStatusMap] = useState({})   // deviceName → record
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -86,11 +86,8 @@ export default function App() {
     setLoading(true)
     setError(null)
     try {
-      const [hubsPayload, statusPayload] = await Promise.all([
-        fetchDevicesByHub(),
-        fetchAllDevicesStatus(),
-      ])
-      setDevices(hubsPayload.devicesByHub ?? [])
+      const statusPayload = await fetchAllDevicesStatus()
+      setDevices(statusPayload.devices ?? [])
       setStatusMap(buildStatusMap(statusPayload))
       setLastUpdated(new Date())
     } catch (e) {
