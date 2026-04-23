@@ -4,6 +4,7 @@ import { InteractionStatus } from '@azure/msal-browser'
 import { Header } from './components/Header.jsx'
 import { DeviceGrid } from './components/DeviceGrid.jsx'
 import { DeviceDetailPage } from './components/DeviceDetailPage.jsx'
+import { ArchitectureDiagram } from './components/ArchitectureDiagram.jsx'
 import { ToastContainer } from './components/ToastContainer.jsx'
 import { LoginPage } from './components/LoginPage.jsx'
 import { useToast } from './useToast.js'
@@ -25,6 +26,7 @@ export default function App() {
   const { toasts, addToast } = useToast()
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedDevice, setSelectedDevice] = useState(null)
+  const [currentView, setCurrentView] = useState('dashboard')
   const [theme, setTheme] = useState(() => {
     if (typeof window === 'undefined') return 'dark'
     const stored = window.localStorage.getItem(THEME_STORAGE_KEY)
@@ -188,10 +190,14 @@ export default function App() {
         onToggleTheme={handleToggleTheme}
         userName={activeAccount?.name}
         onSignOut={() => instance.logoutRedirect()}
+        currentView={currentView}
+        onNavigate={(view) => { setCurrentView(view); setSelectedDevice(null) }}
       />
 
       <main className="main-content">
-        {selectedDevice ? (
+        {currentView === 'architecture' ? (
+          <ArchitectureDiagram onBack={() => setCurrentView('dashboard')} />
+        ) : selectedDevice ? (
           <DeviceDetailPage
             device={selectedDevice}
             statusRecord={

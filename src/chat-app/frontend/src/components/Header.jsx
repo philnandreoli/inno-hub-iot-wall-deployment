@@ -1,4 +1,4 @@
-export function Header({ connectionOk, loading, onRefresh, theme, onToggleTheme, userName, onSignOut }) {
+export function Header({ connectionOk, loading, onRefresh, theme, onToggleTheme, userName, onSignOut, currentView, onNavigate }) {
   const isLightMode = theme === 'light'
 
   return (
@@ -26,6 +26,24 @@ export function Header({ connectionOk, loading, onRefresh, theme, onToggleTheme,
             <span className="logo-title">IoT Control Nexus</span>
             <span className="logo-subtitle">Device Operations Dashboard</span>
           </div>
+          {onNavigate && (
+            <nav className="header-nav">
+              <button
+                type="button"
+                className={`nav-link${currentView === 'dashboard' ? ' active' : ''}`}
+                onClick={() => onNavigate('dashboard')}
+              >
+                Dashboard
+              </button>
+              <button
+                type="button"
+                className={`nav-link${currentView === 'architecture' ? ' active' : ''}`}
+                onClick={() => onNavigate('architecture')}
+              >
+                Architecture
+              </button>
+            </nav>
+          )}
         </div>
 
         <div className="header-meta">
