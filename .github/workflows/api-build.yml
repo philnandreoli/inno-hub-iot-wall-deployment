@@ -116,4 +116,5 @@ jobs:
               MQTT_RESPONSE_TOPIC=${{ vars.MQTT_RESPONSE_TOPIC }} \
               FABRIC_EVENTHOUSE_QUERY_URI=${{ vars.FABRIC_EVENTHOUSE_QUERY_URI }} \
               FABRIC_EVENTHOUSE_DATABASE=${{ vars.FABRIC_EVENTHOUSE_DATABASE }} \
+              APPLICATIONINSIGHTS_CONNECTION_STRING=${{ secrets.VITE_APPINSIGHTS_CONNECTION_STRING }} \
             --image ${{ secrets.ACR_HOSTNAME }}/iot-wall-api:${{ github.sha }}

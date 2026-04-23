@@ -3,6 +3,8 @@ import { useIsAuthenticated, useMsal } from '@azure/msal-react'
 import { InteractionStatus } from '@azure/msal-browser'
 import { Header } from './components/Header.jsx'
 import { DeviceGrid } from './components/DeviceGrid.jsx'
+import { DeviceMapView } from './components/DeviceMapView.jsx'
+import { ViewToggle } from './components/ViewToggle.jsx'
 import { DeviceDetailPage } from './components/DeviceDetailPage.jsx'
 import { ArchitectureDiagram } from './components/ArchitectureDiagram.jsx'
 import { ToastContainer } from './components/ToastContainer.jsx'
@@ -27,6 +29,7 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedDevice, setSelectedDevice] = useState(null)
   const [currentView, setCurrentView] = useState('dashboard')
+  const [dashboardView, setDashboardView] = useState('grid') // 'grid' | 'map'
   const [theme, setTheme] = useState(() => {
     if (typeof window === 'undefined') return 'dark'
     const stored = window.localStorage.getItem(THEME_STORAGE_KEY)
@@ -218,9 +221,12 @@ export default function App() {
                 <span className="section-label">// Live Operations</span>
                 <h1 className="section-title">Device Control</h1>
               </div>
-              <span className="last-updated">
-                Last sync: {formatTime(lastUpdated)}
-              </span>
+              <div className="section-header-right">
+                <ViewToggle view={dashboardView} onToggle={setDashboardView} />
+                <span className="last-updated">
+                  Last sync: {formatTime(lastUpdated)}
+                </span>
+              </div>
             </div>
 
             {/* Stats bar */}
@@ -294,17 +300,26 @@ export default function App() {
               </div>
             )}
 
-            {/* Device Grid */}
+            {/* Device Grid or Map */}
             {!error && devices.length > 0 && (
-              <DeviceGrid
-                devicesByHub={devices}
-                statusMap={statusMap}
-                onToast={addToast}
-                onStatusUpdate={handleStatusUpdate}
-                onSelectDevice={setSelectedDevice}
-                currentPage={currentPage}
-                onPageChange={setCurrentPage}
-              />
+              dashboardView === 'map' ? (
+                <DeviceMapView
+                  devices={devices}
+                  statusMap={statusMap}
+                  onSelectDevice={setSelectedDevice}
+                  theme={theme}
+                />
+              ) : (
+                <DeviceGrid
+                  devicesByHub={devices}
+                  statusMap={statusMap}
+                  onToast={addToast}
+                  onStatusUpdate={handleStatusUpdate}
+                  onSelectDevice={setSelectedDevice}
+                  currentPage={currentPage}
+                  onPageChange={setCurrentPage}
+                />
+              )
             )}
           </>
         )}

@@ -18,6 +18,7 @@ class Settings:
     fabric_eventhouse_query_uri: str
     fabric_eventhouse_database: str
     fabric_eventhouse_query_retries: int
+    applicationinsights_connection_string: str
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -38,4 +39,7 @@ class Settings:
                 int(os.getenv("FABRIC_EVENTHOUSE_QUERY_RETRIES", "5")),
                 1,
             ),
+            applicationinsights_connection_string=os.getenv(
+                "APPLICATIONINSIGHTS_CONNECTION_STRING", ""
+            ).strip(),
         )

@@ -2277,3 +2277,327 @@ body::after {
     gap: 10px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════
+   VIEW TOGGLE (Grid ↔ Map)
+   ═══════════════════════════════════════════════════════ */
+
+.section-header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.view-toggle-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.view-toggle-option {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast), background var(--transition-fast);
+}
+
+.view-toggle-option:hover {
+  color: var(--text-secondary);
+}
+
+.view-toggle-option.active {
+  color: var(--cyan);
+}
+
+.view-toggle-track {
+  position: relative;
+  width: 40px;
+  height: 20px;
+  border-radius: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-mid);
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.view-toggle-track:hover {
+  border-color: var(--cyan-dim);
+}
+
+.view-toggle-track:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.view-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan-glow-strong);
+  transition: left var(--transition-mid);
+}
+
+.view-toggle-thumb.left {
+  left: 2px;
+}
+
+.view-toggle-thumb.right {
+  left: 22px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   DEVICE MAP
+   ═══════════════════════════════════════════════════════ */
+
+.device-map-container {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border-dim);
+  box-shadow: var(--shadow-panel);
+  position: relative;
+}
+
+.device-map {
+  width: 100%;
+  height: 100%;
+  min-height: 520px;
+  background: var(--bg-deep);
+  z-index: 1;
+}
+
+/* Remove Leaflet default blue outline */
+.map-marker-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Leaflet attribution muted */
+.device-map .leaflet-control-attribution {
+  background: var(--bg-panel) !important;
+  color: var(--text-muted) !important;
+  font-size: 9px !important;
+  border-radius: var(--radius-sm) 0 0 0;
+}
+
+.device-map .leaflet-control-attribution a {
+  color: var(--cyan-dim) !important;
+}
+
+/* Leaflet zoom controls */
+.device-map .leaflet-control-zoom a {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-dim) !important;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.device-map .leaflet-control-zoom a:hover {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-mid) !important;
+}
+
+/* ── Map Popup ───────────────────────────────────────── */
+
+.leaflet-popup-content-wrapper {
+  background: var(--bg-card) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-mid) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-elevated) !important;
+  padding: 0 !important;
+}
+
+.leaflet-popup-tip {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-mid) !important;
+  border-top: none !important;
+  border-left: none !important;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  min-width: 240px;
+}
+
+.map-popup-inner {
+  padding: 14px 16px;
+}
+
+.map-popup-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.map-popup-hub {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  color: var(--cyan);
+}
+
+.map-popup-city {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.map-popup-count {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-dim);
+}
+
+.map-popup-devices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Device Card inside Popup ── */
+
+.map-popup-device-card {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-dim);
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.map-popup-device-card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-mid);
+}
+
+.popup-card-name {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.popup-card-stats {
+  display: flex;
+  gap: 12px;
+}
+
+.popup-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 48px;
+}
+
+.popup-stat-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.popup-stat-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.popup-stat-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.popup-stat-value.cool {
+  color: var(--green);
+}
+
+.popup-stat-value.warn {
+  color: var(--amber);
+}
+
+.popup-stat-value.hot {
+  color: var(--red);
+}
+
+.popup-stat-value.on {
+  color: var(--green);
+}
+
+.popup-stat-value.off {
+  color: var(--text-muted);
+}
+
+.popup-stat-led {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.popup-stat-led.on {
+  color: var(--green);
+  text-shadow: 0 0 8px var(--green-glow);
+}
+
+.popup-stat-led.off {
+  color: var(--text-muted);
+}
+
+.popup-stat-fan {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.popup-stat-fan.on {
+  color: var(--cyan);
+  animation: spin-fan 1.5s linear infinite;
+}
+
+.popup-stat-fan.off {
+  color: var(--text-muted);
+}
+
+@keyframes spin-fan {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Close button */
+.leaflet-popup-close-button {
+  color: var(--text-secondary) !important;
+  font-size: 18px !important;
+  padding: 6px 8px 0 0 !important;
+}
+
+.leaflet-popup-close-button:hover {
+  color: var(--cyan) !important;
+}
