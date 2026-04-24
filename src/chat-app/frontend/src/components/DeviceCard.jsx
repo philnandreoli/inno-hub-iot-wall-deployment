@@ -179,14 +179,14 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
       )}
 
       {/* ── Controls ── */}
-      <div className="card-controls">
+      <div className={`card-controls${!isOnline ? ' controls-disabled' : ''}`}>
         {/* Lamp controls */}
         <div className="control-row">
           <div className="control-row-label">Lamp Control</div>
           <div className={`control-buttons${lampOn !== null ? ' has-active' : ''}`}>
             <button
               className={`ctrl-btn off-btn${lampOn === false ? ' active' : ''}`}
-              disabled={!!lampBusy}
+              disabled={!isOnline || !!lampBusy}
               onClick={() =>
                 handleCmd(
                   () => sendLampOff(deviceName),
@@ -203,7 +203,7 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
             </button>
             <button
               className={`ctrl-btn on-btn${lampOn === true ? ' active' : ''}`}
-              disabled={!!lampBusy}
+              disabled={!isOnline || !!lampBusy}
               onClick={() =>
                 handleCmd(
                   () => sendLampOn(deviceName),
@@ -227,7 +227,7 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
           <div className={`control-buttons${fanOn !== null ? ' has-active' : ''}`}>
             <button
               className={`ctrl-btn off-btn${fanOn === false ? ' active' : ''}`}
-              disabled={!!fanBusy}
+              disabled={!isOnline || !!fanBusy}
               onClick={() =>
                 handleCmd(
                   () => sendFanOff(deviceName),
@@ -244,7 +244,7 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
             </button>
             <button
               className={`ctrl-btn on-btn${fanOn === true ? ' active' : ''}`}
-              disabled={!!fanBusy}
+              disabled={!isOnline || !!fanBusy}
               onClick={() =>
                 handleCmd(
                   () => sendFanOn(deviceName),
@@ -270,7 +270,7 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
               <button
                 key={n}
                 className={`blink-btn${currentBlinkPattern === n ? ' active' : ''}`}
-                disabled={blinkBusy}
+                disabled={!isOnline || blinkBusy}
                 onClick={() =>
                   handleCmd(
                     () => sendBlinkPattern(deviceName, n),

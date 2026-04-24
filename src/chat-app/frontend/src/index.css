@@ -913,6 +913,11 @@ body::after {
   gap: 12px;
 }
 
+.card-controls.controls-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
 .device-card--embedded .card-controls {
   padding: 0;
 }

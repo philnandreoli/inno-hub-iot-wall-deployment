@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { DeviceCard } from './DeviceCard.jsx'
 
 function getDeviceName(device) {
@@ -15,6 +15,16 @@ function getDeviceName(device) {
   return name || 'Unknown'
 }
 
+// Unique key for dedup — falls back to hubName so offline devices without
+// an iotInstanceName don't all collapse into a single "Unknown" entry.
+function getDeviceKey(device) {
+  if (!device) return 'Unknown'
+  const name = getDeviceName(device)
+  if (name !== 'Unknown') return name
+  const hub = device.hubName ?? device.HubName ?? device.hub ?? device.Hub ?? null
+  return hub ? `hub:${hub}` : 'Unknown'
+}
+
 const DEVICES_PER_PAGE = 6
 
 export function DeviceGrid({
@@ -26,7 +36,22 @@ export function DeviceGrid({
   currentPage,
   onPageChange,
 }) {
-  const allDevices = devicesByHub || []
+  // Sort devices by name for stable pagination across data refreshes,
+  // and deduplicate in case the API returns the same device twice.
+  const allDevices = useMemo(() => {
+    const raw = devicesByHub || []
+    const seen = new Set()
+    const unique = []
+    for (const d of raw) {
+      const key = getDeviceKey(d)
+      if (!seen.has(key)) {
+        seen.add(key)
+        unique.push(d)
+      }
+    }
+    unique.sort((a, b) => getDeviceKey(a).localeCompare(getDeviceKey(b)))
+    return unique
+  }, [devicesByHub])
   const totalPages = Math.max(1, Math.ceil(allDevices.length / DEVICES_PER_PAGE))
   const validPage = Math.min(currentPage, totalPages)
   const startIdx = (validPage - 1) * DEVICES_PER_PAGE
@@ -49,6 +74,7 @@ export function DeviceGrid({
     <div className="device-grid-container">
       <div className="devices-grid">
         {paginatedDevices.map(device => {
+          const deviceKey = getDeviceKey(device)
           const dName = getDeviceName(device)
           let status = statusMap[dName] ?? statusMap[dName.toLowerCase()] ?? null
           if (!status) {
@@ -60,7 +86,7 @@ export function DeviceGrid({
           }
           return (
             <div
-              key={dName}
+              key={deviceKey}
               className="device-card-trigger"
             >
               <DeviceCard device={device} statusRecord={status} onToast={onToast} onStatusUpdate={onStatusUpdate} onSelectDevice={onSelectDevice} />
