@@ -150,6 +150,14 @@ export default function App() {
     if (typeof v === 'number') return v > 0
     return parseFloat(v) > 0
   }).length
+  const offlineCount = devices.filter(d => {
+    const name = getDeviceName(d)
+    const r = statusMap[name] ?? statusMap[name.toLowerCase()]
+    const msgs = r?.messagesLast24h ?? r?.MessagesLast24h ?? r?.messages_last_24h ?? null
+    if (msgs === null || msgs === undefined) return true
+    const n = typeof msgs === 'number' ? msgs : parseInt(msgs, 10)
+    return !(n > 0)
+  }).length
 
   const connectionOk = !error && lastUpdated !== null
 
@@ -255,6 +263,11 @@ export default function App() {
                 <div className="stat-item">
                   <span className="stat-label">Lamps Off</span>
                   <span className="stat-value red">{totalDevices - lampsOn}</span>
+                </div>
+                <div className="stat-divider" />
+                <div className="stat-item">
+                  <span className="stat-label">Offline</span>
+                  <span className="stat-value" style={{ color: '#8d6e63' }}>{offlineCount}</span>
                 </div>
               </div>
             )}

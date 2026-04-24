@@ -35,6 +35,18 @@ function getTemperature(record) {
   return Number.isFinite(n) ? n : null
 }
 
+function getMessagesLast24h(record) {
+  if (!record) return 0
+  const val = record.messagesLast24h ?? record.MessagesLast24h ?? record.messages_last_24h ?? null
+  if (val === null || val === undefined) return 0
+  if (typeof val === 'number') return val
+  if (typeof val === 'string') {
+    const parsed = parseInt(val, 10)
+    return isNaN(parsed) ? 0 : parsed
+  }
+  return 0
+}
+
 // ── Custom marker icons ──────────────────────────────────────────
 
 function buildSvgIcon(color, glowColor) {
@@ -58,18 +70,21 @@ function buildSvgIcon(color, glowColor) {
   })
 }
 
-const ICON_ONLINE = buildSvgIcon('#00e676', '#00e676')
-const ICON_WARN   = buildSvgIcon('#ffab00', '#ffab00')
-const ICON_COLD   = buildSvgIcon('#00b8cc', '#00e5ff')
-const ICON_HOT    = buildSvgIcon('#ff1744', '#ff1744')
+const ICON_ONLINE  = buildSvgIcon('#00e676', '#00e676')
+const ICON_WARN    = buildSvgIcon('#ffab00', '#ffab00')
+const ICON_COLD    = buildSvgIcon('#00b8cc', '#00e5ff')
+const ICON_HOT     = buildSvgIcon('#ff1744', '#ff1744')
+const ICON_OFFLINE = buildSvgIcon('#8d6e63', '#8d6e63')
 
 function pickIcon(device, statusRecord) {
+  const isOnline = statusRecord && getMessagesLast24h(statusRecord) > 0
+  if (!isOnline) return ICON_OFFLINE
   const temp = getTemperature(statusRecord ?? device)
   if (temp !== null) {
     if (temp > 107) return ICON_HOT
     if (temp > 92) return ICON_WARN
   }
-  return statusRecord ? ICON_ONLINE : ICON_COLD
+  return ICON_ONLINE
 }
 
 // ── Auto-fit bounds ──────────────────────────────────────────────

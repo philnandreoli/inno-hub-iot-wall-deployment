@@ -83,7 +83,7 @@ function formatMetricValue(value, metricKey) {
 }
 
 function getDeviceName(device) {
-  if (!device) return 'Unknown'
+  if (!device) return ''
   let name = device.iotInstanceName ?? device.deviceName ?? device.DeviceName ?? device.device_name ?? device.Device ?? device.device ?? device.name ?? device.Name ?? null
   if (!name) {
     for (const [key, val] of Object.entries(device)) {
@@ -93,7 +93,19 @@ function getDeviceName(device) {
       }
     }
   }
-  return name || 'Unknown'
+  return name || ''
+}
+
+function getMessagesLast24h(record) {
+  if (!record) return 0
+  const val = record.messagesLast24h ?? record.MessagesLast24h ?? record.messages_last_24h ?? null
+  if (val === null || val === undefined) return 0
+  if (typeof val === 'number') return val
+  if (typeof val === 'string') {
+    const parsed = parseInt(val, 10)
+    return isNaN(parsed) ? 0 : parsed
+  }
+  return 0
 }
 
 function getTemperature(record) {
@@ -394,9 +406,9 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
               <span>{getTemperature(statusRecord).toFixed(1)}°F</span>
             </div>
           )}
-          <div className={`detail-online-badge ${statusRecord ? 'online' : 'offline'}`}>
+          <div className={`detail-online-badge ${statusRecord && getMessagesLast24h(statusRecord) > 0 ? 'online' : 'offline'}`}>
             <span className="led" />
-            {statusRecord ? 'Online' : 'No Data'}
+            {statusRecord && getMessagesLast24h(statusRecord) > 0 ? 'Online' : 'Offline'}
           </div>
         </div>
       </div>

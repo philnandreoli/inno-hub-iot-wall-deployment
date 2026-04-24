@@ -60,6 +60,18 @@ function getTemperature(record) {
   return null
 }
 
+function getMessagesLast24h(record) {
+  if (!record) return 0
+  const val = record.messagesLast24h ?? record.MessagesLast24h ?? record.messages_last_24h ?? null
+  if (val === null || val === undefined) return 0
+  if (typeof val === 'number') return val
+  if (typeof val === 'string') {
+    const parsed = parseInt(val, 10)
+    return isNaN(parsed) ? 0 : parsed
+  }
+  return 0
+}
+
 function getDeviceName(device) {
   if (!device) return 'Unknown'
   let name = device.iotInstanceName ?? device.deviceName ?? device.DeviceName ?? device.device_name ?? device.Device ?? device.device ?? device.name ?? device.Name ?? null
@@ -71,7 +83,7 @@ function getDeviceName(device) {
       }
     }
   }
-  return name || 'Unknown'
+  return name || ''
 }
 
 export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCommandComplete, onSelectDevice, embedded }) {
@@ -88,9 +100,9 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
   const currentBlinkPattern = getBlinkPattern(statusRecord)
   const temperature = getTemperature(statusRecord)
 
-  // Determine if device has recent data
+  // Determine if device has recent data (messagesLast24h > 0 means actively reporting)
   const hasStatus = !!statusRecord
-  const isOnline = hasStatus
+  const isOnline = hasStatus && getMessagesLast24h(statusRecord) > 0
 
   function tempBadgeStyle(val) {
     if (!Number.isFinite(val)) return {}
@@ -160,7 +172,7 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
             )}
           <div className={`device-online-indicator ${isOnline ? 'online' : 'offline'}`}>
             <span className="led" />
-            {isOnline ? 'Online' : 'No Data'}
+            {isOnline ? 'Online' : 'Offline'}
           </div>
           </div>
         </div>
