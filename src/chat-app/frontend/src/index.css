@@ -2284,6 +2284,38 @@ body::after {
 }
 
 /* ═══════════════════════════════════════════════════════
+   FILTER OFFLINE TOGGLE
+   ═══════════════════════════════════════════════════════ */
+
+.filter-offline-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--border-mid);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.filter-offline-btn:hover {
+  border-color: var(--cyan);
+  color: var(--text-primary);
+}
+
+.filter-offline-btn.active {
+  border-color: var(--cyan);
+  background: var(--cyan-glow);
+  color: var(--cyan);
+}
+
+/* ═══════════════════════════════════════════════════════
    VIEW TOGGLE (Grid ↔ Map)
    ═══════════════════════════════════════════════════════ */
 

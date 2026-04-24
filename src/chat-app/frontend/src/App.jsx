@@ -30,6 +30,7 @@ export default function App() {
   const [selectedDevice, setSelectedDevice] = useState(null)
   const [currentView, setCurrentView] = useState('dashboard')
   const [dashboardView, setDashboardView] = useState('grid') // 'grid' | 'map'
+  const [hideOffline, setHideOffline] = useState(false)
   const [theme, setTheme] = useState(() => {
     if (typeof window === 'undefined') return 'dark'
     const stored = window.localStorage.getItem(THEME_STORAGE_KEY)
@@ -159,6 +160,19 @@ export default function App() {
     return !(n > 0)
   }).length
 
+  // Helper: is a device offline?
+  const isDeviceOffline = (d) => {
+    const name = getDeviceName(d)
+    const r = statusMap[name] ?? statusMap[name.toLowerCase()]
+    const msgs = r?.messagesLast24h ?? r?.MessagesLast24h ?? r?.messages_last_24h ?? null
+    if (msgs === null || msgs === undefined) return true
+    const n = typeof msgs === 'number' ? msgs : parseInt(msgs, 10)
+    return !(n > 0)
+  }
+
+  // Filtered device list (hide offline when toggle is on)
+  const filteredDevices = hideOffline ? devices.filter(d => !isDeviceOffline(d)) : devices
+
   const connectionOk = !error && lastUpdated !== null
 
   const formatTime = d =>
@@ -230,6 +244,34 @@ export default function App() {
                 <h1 className="section-title">Device Control</h1>
               </div>
               <div className="section-header-right">
+                <button
+                  type="button"
+                  className={`filter-offline-btn${hideOffline ? ' active' : ''}`}
+                  onClick={() => { setHideOffline(h => !h); setCurrentPage(1) }}
+                  title={hideOffline ? 'Show all devices' : 'Hide offline devices'}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    {hideOffline ? (
+                      <>
+                        <path d="M1 1l22 22" />
+                        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+                        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+                        <path d="M10.71 5.05A16 16 0 0 1 22.56 9" />
+                        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+                        <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                        <line x1="12" y1="20" x2="12.01" y2="20" />
+                      </>
+                    ) : (
+                      <>
+                        <path d="M5 12.55a11 11 0 0 1 14 0" />
+                        <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+                        <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+                        <line x1="12" y1="20" x2="12.01" y2="20" />
+                      </>
+                    )}
+                  </svg>
+                  {hideOffline ? 'Offline hidden' : 'Hide offline'}
+                </button>
                 <ViewToggle view={dashboardView} onToggle={setDashboardView} />
                 <span className="last-updated">
                   Last sync: {formatTime(lastUpdated)}
@@ -317,14 +359,14 @@ export default function App() {
             {!error && devices.length > 0 && (
               dashboardView === 'map' ? (
                 <DeviceMapView
-                  devices={devices}
+                  devices={filteredDevices}
                   statusMap={statusMap}
                   onSelectDevice={setSelectedDevice}
                   theme={theme}
                 />
               ) : (
                 <DeviceGrid
-                  devicesByHub={devices}
+                  devicesByHub={filteredDevices}
                   statusMap={statusMap}
                   onToast={addToast}
                   onStatusUpdate={handleStatusUpdate}
