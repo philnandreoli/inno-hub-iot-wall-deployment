@@ -72,6 +72,43 @@ function getMessagesLast24h(record) {
   return 0
 }
 
+function getLuezeMessagesLast24h(record) {
+  if (!record) return 0
+  const val = record.luezeMessagesLast24h ?? record.LuezeMessagesLast24h ?? record.lueze_messages_last_24h ?? null
+  if (val === null || val === undefined) return 0
+  if (typeof val === 'number') return val
+  if (typeof val === 'string') {
+    const parsed = parseInt(val, 10)
+    return isNaN(parsed) ? 0 : parsed
+  }
+  return 0
+}
+
+// Returns 'online' | 'partial' | 'offline'
+function getConnectionStatus(record) {
+  if (!record) return 'offline'
+  const beckhoff = getMessagesLast24h(record) > 0
+  const lueze = getLuezeMessagesLast24h(record) > 0
+  if (beckhoff && lueze) return 'online'
+  if (beckhoff || lueze) return 'partial'
+  return 'offline'
+}
+
+function getLuezeBarcode(record) {
+  if (!record) return null
+  return record.luezelastReadBarcode ?? record.luezeLastReadBarcode ?? record.LuezeLastReadBarcode ?? null
+}
+
+function getLuezeTimestamp(record) {
+  if (!record) return null
+  return record.luezeBarcodeIngestionTime ?? record.LuezeBarcodeIngestionTime ?? null
+}
+
+function getLuezeRecordCount(record) {
+  if (!record) return 0
+  return getLuezeMessagesLast24h(record)
+}
+
 function getDeviceName(device) {
   if (!device) return 'Unknown'
   let name = device.iotInstanceName ?? device.deviceName ?? device.DeviceName ?? device.device_name ?? device.Device ?? device.device ?? device.name ?? device.Name ?? null
@@ -100,9 +137,14 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
   const currentBlinkPattern = getBlinkPattern(statusRecord)
   const temperature = getTemperature(statusRecord)
 
-  // Determine if device has recent data (messagesLast24h > 0 means actively reporting)
-  const hasStatus = !!statusRecord
-  const isOnline = hasStatus && getMessagesLast24h(statusRecord) > 0
+  // Determine connection status: online (both), partial (one), offline (neither)
+  const connectionStatus = getConnectionStatus(statusRecord)
+  const isOnline = connectionStatus !== 'offline'
+
+  // Leuze barcode reader data
+  const luezeBarcode = getLuezeBarcode(statusRecord)
+  const luezeTimestamp = getLuezeTimestamp(statusRecord)
+  const luezeRecordCount = getLuezeRecordCount(statusRecord)
 
   function tempBadgeStyle(val) {
     if (!Number.isFinite(val)) return {}
@@ -170,15 +212,19 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
                 <span className="temp-value">{temperature.toFixed(1)}°F</span>
               </div>
             )}
-          <div className={`device-online-indicator ${isOnline ? 'online' : 'offline'}`}>
+          <div className={`device-online-indicator ${connectionStatus}`}>
             <span className="led" />
-            {isOnline ? 'Online' : 'Offline'}
+            {connectionStatus === 'online' ? 'Online' : connectionStatus === 'partial' ? 'Partial' : 'Offline'}
           </div>
           </div>
         </div>
       )}
 
-      {/* ── Controls ── */}
+      {/* ── Beckhoff Controller ── */}
+      <div className="controller-section-label beckhoff">
+        <span className="section-icon" aria-hidden="true">⚙</span>
+        <span className="section-text">Beckhoff Controller</span>
+      </div>
       <div className={`card-controls${!isOnline ? ' controls-disabled' : ''}`}>
         {/* Lamp controls */}
         <div className="control-row">
@@ -285,6 +331,36 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
                 {n}
               </button>
             ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Leuze Barcode Reader ── */}
+      <hr className="card-section-divider" />
+      <div className="controller-section-label leuze">
+        <span className="section-icon" aria-hidden="true">📡</span>
+        <span className="section-text">Leuze Barcode Reader</span>
+      </div>
+      <div className="leuze-data">
+        <div className="leuze-stat-row">
+          <div className="leuze-stat-label">Last Barcode Read</div>
+          <div className={`leuze-barcode-value${!luezeBarcode ? ' leuze-no-data' : ''}`}>
+            <div className={`barcode-icon${!luezeBarcode ? ' barcode-icon--dim' : ''}`} aria-hidden="true">
+              <span className="bar" /><span className="bar" /><span className="bar" /><span className="bar" /><span className="bar" /><span className="bar" /><span className="bar" />
+            </div>
+            {luezeBarcode || 'No data yet'}
+          </div>
+        </div>
+        <div className="leuze-stat-row">
+          <div className="leuze-stat-label">Time Read</div>
+          <div className={`leuze-time-value${!luezeTimestamp ? ' leuze-no-data' : ''}`}>
+            {luezeTimestamp || '—'}
+          </div>
+        </div>
+        <div className="leuze-stat-row">
+          <div className="leuze-stat-label">Total Records Processed</div>
+          <div className="leuze-count-row">
+            <div className="leuze-count-value">{luezeRecordCount.toLocaleString()}</div>
           </div>
         </div>
       </div>

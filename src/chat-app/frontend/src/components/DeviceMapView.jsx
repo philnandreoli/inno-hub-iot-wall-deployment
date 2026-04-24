@@ -47,6 +47,37 @@ function getMessagesLast24h(record) {
   return 0
 }
 
+function getLuezeMessagesLast24h(record) {
+  if (!record) return 0
+  const val = record.luezeMessagesLast24h ?? record.LuezeMessagesLast24h ?? record.lueze_messages_last_24h ?? null
+  if (val === null || val === undefined) return 0
+  if (typeof val === 'number') return val
+  if (typeof val === 'string') {
+    const parsed = parseInt(val, 10)
+    return isNaN(parsed) ? 0 : parsed
+  }
+  return 0
+}
+
+function getConnectionStatus(record) {
+  if (!record) return 'offline'
+  const beckhoff = getMessagesLast24h(record) > 0
+  const lueze = getLuezeMessagesLast24h(record) > 0
+  if (beckhoff && lueze) return 'online'
+  if (beckhoff || lueze) return 'partial'
+  return 'offline'
+}
+
+function getLuezeBarcode(record) {
+  if (!record) return null
+  return record.luezelastReadBarcode ?? record.luezeLastReadBarcode ?? record.LuezeLastReadBarcode ?? null
+}
+
+function getLuezeIngestionTime(record) {
+  if (!record) return null
+  return record.luezeBarcodeIngestionTime ?? record.LuezeBarcodeIngestionTime ?? null
+}
+
 // ── Custom marker icons ──────────────────────────────────────────
 
 function buildSvgIcon(color, glowColor) {
@@ -75,10 +106,12 @@ const ICON_WARN    = buildSvgIcon('#ffab00', '#ffab00')
 const ICON_COLD    = buildSvgIcon('#00b8cc', '#00e5ff')
 const ICON_HOT     = buildSvgIcon('#ff1744', '#ff1744')
 const ICON_OFFLINE = buildSvgIcon('#8d6e63', '#8d6e63')
+const ICON_PARTIAL = buildSvgIcon('#ffab00', '#ffab00')
 
 function pickIcon(device, statusRecord) {
-  const isOnline = statusRecord && getMessagesLast24h(statusRecord) > 0
-  if (!isOnline) return ICON_OFFLINE
+  const status = getConnectionStatus(statusRecord)
+  if (status === 'offline') return ICON_OFFLINE
+  if (status === 'partial') return ICON_PARTIAL
   const temp = getTemperature(statusRecord ?? device)
   if (temp !== null) {
     if (temp > 107) return ICON_HOT
@@ -186,6 +219,9 @@ export function DeviceMapView({ devices, statusMap, onSelectDevice, theme }) {
                       const lamp = getLampState(status)
                       const fan = getFanState(status)
                       const temp = getTemperature(status)
+                      const luezeBarcode = getLuezeBarcode(status)
+                      const luezeIngestionTime = getLuezeIngestionTime(status)
+                      const luezeMessages24h = getLuezeMessagesLast24h(status)
                       return (
                         <div
                           key={name}
@@ -222,6 +258,21 @@ export function DeviceMapView({ devices, statusMap, onSelectDevice, theme }) {
                               <span className={`popup-stat-value ${fan ? 'on' : 'off'}`}>
                                 {fan === null ? '—' : fan ? 'On' : 'Off'}
                               </span>
+                            </div>
+                          </div>
+                          <div className="popup-leuze-block">
+                            <div className="popup-leuze-title">Leuze</div>
+                            <div className="popup-leuze-row">
+                              <span className="popup-leuze-label">Barcode</span>
+                              <span className={`popup-leuze-value${luezeBarcode ? '' : ' no-data'}`}>{luezeBarcode || 'No data yet'}</span>
+                            </div>
+                            <div className="popup-leuze-row">
+                              <span className="popup-leuze-label">Time</span>
+                              <span className={`popup-leuze-value${luezeIngestionTime ? '' : ' no-data'}`}>{luezeIngestionTime || '—'}</span>
+                            </div>
+                            <div className="popup-leuze-row">
+                              <span className="popup-leuze-label">Msgs/24h</span>
+                              <span className="popup-leuze-value">{luezeMessages24h.toLocaleString()}</span>
                             </div>
                           </div>
                         </div>

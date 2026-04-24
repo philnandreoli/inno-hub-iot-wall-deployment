@@ -108,6 +108,27 @@ function getMessagesLast24h(record) {
   return 0
 }
 
+function getLuezeMessagesLast24h(record) {
+  if (!record) return 0
+  const val = record.luezeMessagesLast24h ?? record.LuezeMessagesLast24h ?? record.lueze_messages_last_24h ?? null
+  if (val === null || val === undefined) return 0
+  if (typeof val === 'number') return val
+  if (typeof val === 'string') {
+    const parsed = parseInt(val, 10)
+    return isNaN(parsed) ? 0 : parsed
+  }
+  return 0
+}
+
+function getConnectionStatus(record) {
+  if (!record) return 'offline'
+  const beckhoff = getMessagesLast24h(record) > 0
+  const lueze = getLuezeMessagesLast24h(record) > 0
+  if (beckhoff && lueze) return 'online'
+  if (beckhoff || lueze) return 'partial'
+  return 'offline'
+}
+
 function getTemperature(record) {
   if (!record) return null
   const val = record.temperatureF ?? record.temperature ?? record.Temperature ?? record.temp ?? record.Temp ?? null
@@ -406,9 +427,9 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
               <span>{getTemperature(statusRecord).toFixed(1)}°F</span>
             </div>
           )}
-          <div className={`detail-online-badge ${statusRecord && getMessagesLast24h(statusRecord) > 0 ? 'online' : 'offline'}`}>
+          <div className={`detail-online-badge ${getConnectionStatus(statusRecord)}`}>
             <span className="led" />
-            {statusRecord && getMessagesLast24h(statusRecord) > 0 ? 'Online' : 'Offline'}
+            {getConnectionStatus(statusRecord) === 'online' ? 'Online' : getConnectionStatus(statusRecord) === 'partial' ? 'Partial' : 'Offline'}
           </div>
         </div>
       </div>

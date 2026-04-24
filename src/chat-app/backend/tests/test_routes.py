@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from app.dependencies import get_publisher, get_status_reader, verify_token
 from app.main import create_app
+from app.services.status_reader import EventhouseStatusReader
 
 
 class FakePublisher:
@@ -179,3 +180,32 @@ def test_device_telemetry_rejects_invalid_timespan() -> None:
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid timespan"
+
+
+def test_status_row_normalization_maps_required_lueze_fields() -> None:
+    reader = EventhouseStatusReader.__new__(EventhouseStatusReader)
+    row = {
+        "messages_last_24h": "8594",
+        "luezeMessagesLast24h": 1322,
+        "luezelastReadBarcode": "Leuze Barcodereader",
+        "lueze_barcode_ingestion_time": "2026-04-21 20:31:21.9388722",
+    }
+
+    normalized = reader._normalize_status_row(row)
+
+    assert normalized["messagesLast24h"] == 8594
+    assert normalized["luezeMessagesLast24h"] == 1322
+    assert normalized["luezeLastReadBarcode"] == "Leuze Barcodereader"
+    assert normalized["luezelastReadBarcode"] == "Leuze Barcodereader"
+    assert normalized["luezeBarcodeIngestionTime"] == "2026-04-21 20:31:21.9388722"
+
+
+def test_status_row_normalization_defaults_missing_required_fields() -> None:
+    reader = EventhouseStatusReader.__new__(EventhouseStatusReader)
+
+    normalized = reader._normalize_status_row({"deviceName": "d1-vm-k3s"})
+
+    assert normalized["messagesLast24h"] == 0
+    assert normalized["luezeMessagesLast24h"] == 0
+    assert normalized["luezeLastReadBarcode"] is None
+    assert normalized["luezeBarcodeIngestionTime"] is None

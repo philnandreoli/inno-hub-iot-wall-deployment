@@ -151,24 +151,25 @@ export default function App() {
     if (typeof v === 'number') return v > 0
     return parseFloat(v) > 0
   }).length
-  const offlineCount = devices.filter(d => {
+
+  // Helper: get connection status for a device ('online' | 'partial' | 'offline')
+  const getDeviceConnectionStatus = (d) => {
     const name = getDeviceName(d)
     const r = statusMap[name] ?? statusMap[name.toLowerCase()]
+    if (!r) return 'offline'
     const msgs = r?.messagesLast24h ?? r?.MessagesLast24h ?? r?.messages_last_24h ?? null
-    if (msgs === null || msgs === undefined) return true
-    const n = typeof msgs === 'number' ? msgs : parseInt(msgs, 10)
-    return !(n > 0)
-  }).length
+    const beckhoff = msgs !== null && msgs !== undefined && (typeof msgs === 'number' ? msgs : parseInt(msgs, 10)) > 0
+    const luezeMsgs = r?.luezeMessagesLast24h ?? r?.LuezeMessagesLast24h ?? r?.lueze_messages_last_24h ?? null
+    const lueze = luezeMsgs !== null && luezeMsgs !== undefined && (typeof luezeMsgs === 'number' ? luezeMsgs : parseInt(luezeMsgs, 10)) > 0
+    if (beckhoff && lueze) return 'online'
+    if (beckhoff || lueze) return 'partial'
+    return 'offline'
+  }
+
+  const offlineCount = devices.filter(d => getDeviceConnectionStatus(d) === 'offline').length
 
   // Helper: is a device offline?
-  const isDeviceOffline = (d) => {
-    const name = getDeviceName(d)
-    const r = statusMap[name] ?? statusMap[name.toLowerCase()]
-    const msgs = r?.messagesLast24h ?? r?.MessagesLast24h ?? r?.messages_last_24h ?? null
-    if (msgs === null || msgs === undefined) return true
-    const n = typeof msgs === 'number' ? msgs : parseInt(msgs, 10)
-    return !(n > 0)
-  }
+  const isDeviceOffline = (d) => getDeviceConnectionStatus(d) === 'offline'
 
   // Filtered device list (hide offline when toggle is on)
   const filteredDevices = hideOffline ? devices.filter(d => !isDeviceOffline(d)) : devices

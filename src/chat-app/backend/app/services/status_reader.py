@@ -87,11 +87,12 @@ class EventhouseStatusReader:
         columns = [column.column_name for column in result_table.columns]
         first_row = next(iter(result_table))
         status_record = {column: first_row[index] for index, column in enumerate(columns)}
+        normalized_status_record = self._normalize_status_row(status_record)
 
         return {
             "deviceName": validated_device_name,
             "source": "fabric-eventhouse",
-            "record": jsonable_encoder(status_record),
+            "record": jsonable_encoder(normalized_status_record),
         }
 
     def get_devices_by_hub(self) -> dict[str, Any]:
@@ -123,11 +124,12 @@ class EventhouseStatusReader:
             {column: row[index] for index, column in enumerate(columns)}
             for row in result_table
         ]
+        normalized_rows = [self._normalize_status_row(row) for row in rows]
 
         return {
             "source": "fabric-eventhouse",
-            "count": len(rows),
-            "devices": jsonable_encoder(rows),
+            "count": len(normalized_rows),
+            "devices": jsonable_encoder(normalized_rows),
         }
 
     @staticmethod
@@ -136,6 +138,60 @@ class EventhouseStatusReader:
             if key in row and row[key] is not None:
                 return row[key]
         return None
+
+    @staticmethod
+    def _to_int_or_default(value: Any, default: int = 0) -> int:
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return int(value)
+        if isinstance(value, int):
+            return value
+        if isinstance(value, float):
+            return int(value)
+        if isinstance(value, str):
+            try:
+                return int(value)
+            except ValueError:
+                return default
+        return default
+
+    def _normalize_status_row(self, row: dict[str, Any]) -> dict[str, Any]:
+        normalized = dict(row)
+
+        messages_last_24h = self._first_present(
+            row,
+            ["messagesLast24h", "MessagesLast24h", "messages_last_24h"],
+        )
+        lueze_messages_last_24h = self._first_present(
+            row,
+            ["luezeMessagesLast24h", "LuezeMessagesLast24h", "lueze_messages_last_24h"],
+        )
+        lueze_last_read_barcode = self._first_present(
+            row,
+            [
+                "luezeLastReadBarcode",
+                "luezelastReadBarcode",
+                "LuezeLastReadBarcode",
+                "lueze_last_read_barcode",
+            ],
+        )
+        lueze_barcode_ingestion_time = self._first_present(
+            row,
+            [
+                "luezeBarcodeIngestionTime",
+                "LuezeBarcodeIngestionTime",
+                "lueze_barcode_ingestion_time",
+            ],
+        )
+
+        normalized["messagesLast24h"] = self._to_int_or_default(messages_last_24h)
+        normalized["luezeMessagesLast24h"] = self._to_int_or_default(lueze_messages_last_24h)
+        normalized["luezeLastReadBarcode"] = lueze_last_read_barcode
+        normalized["luezelastReadBarcode"] = lueze_last_read_barcode
+        normalized["luezeBarcodeIngestionTime"] = lueze_barcode_ingestion_time
+
+        return normalized
 
     def _normalize_measurement_row(self, row: dict[str, Any]) -> dict[str, Any]:
         return {

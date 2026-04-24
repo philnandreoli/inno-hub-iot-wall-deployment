@@ -790,6 +790,12 @@ body::after {
   background: transparent;
 }
 
+.device-online-indicator.partial {
+  color: var(--amber);
+  border-color: rgba(255, 171, 0, 0.25);
+  background: rgba(255, 171, 0, 0.06);
+}
+
 .device-online-indicator .led {
   width: 6px;
   height: 6px;
@@ -799,6 +805,10 @@ body::after {
 
 .device-online-indicator.online .led {
   animation: pulse-glow 2s infinite;
+}
+
+.device-online-indicator.partial .led {
+  animation: blink-led 1.5s infinite;
 }
 
 .card-header-right {
@@ -1644,6 +1654,21 @@ body::after {
   height: 8px;
   border-radius: 50%;
   background: var(--text-muted);
+}
+
+.detail-online-badge.partial {
+  color: var(--amber);
+  background: rgba(255, 171, 0, 0.12);
+  border: 1px solid rgba(255, 171, 0, 0.3);
+}
+
+.detail-online-badge.partial .led {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 6px var(--amber);
+  animation: blink-led 1.5s infinite;
 }
 
 .detail-hub {
@@ -2547,6 +2572,52 @@ body::after {
   gap: 12px;
 }
 
+.popup-leuze-block {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border-dim);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.popup-leuze-title {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cyan-dim);
+}
+
+.popup-leuze-row {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.popup-leuze-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.popup-leuze-value {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.popup-leuze-value.no-data {
+  color: var(--text-muted);
+}
+
 .popup-stat {
   display: flex;
   flex-direction: column;
@@ -2637,4 +2708,161 @@ body::after {
 
 .leaflet-popup-close-button:hover {
   color: var(--cyan) !important;
+}
+
+/* ──────────────── CONTROLLER SECTION LABELS ──────────────── */
+.controller-section-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-bottom: 1px solid var(--border-dim);
+  background: var(--bg-surface);
+}
+
+.controller-section-label .section-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.controller-section-label .section-text {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.controller-section-label.beckhoff {
+  border-left: 3px solid var(--amber);
+  background: var(--amber-glow);
+}
+
+.controller-section-label.beckhoff .section-text {
+  color: var(--amber);
+}
+
+.controller-section-label.leuze {
+  border-left: 3px solid var(--cyan);
+  background: var(--cyan-glow);
+}
+
+.controller-section-label.leuze .section-text {
+  color: var(--cyan);
+}
+
+/* ──────────────── CARD SECTION DIVIDER ──────────────── */
+.card-section-divider {
+  height: 0;
+  border: none;
+  border-top: 1px dashed var(--border-dim);
+  margin: 0;
+}
+
+/* ──────────────── LEUZE BARCODE READER DATA ──────────────── */
+.leuze-data {
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.leuze-stat-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.leuze-stat-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.leuze-barcode-value {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+  position: relative;
+  overflow: hidden;
+}
+
+.leuze-barcode-value::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--cyan);
+}
+
+.leuze-barcode-value.leuze-no-data {
+  opacity: 0.5;
+  font-style: italic;
+  font-weight: 500;
+}
+
+.barcode-icon {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex-shrink: 0;
+}
+
+.barcode-icon .bar {
+  display: inline-block;
+  width: 2px;
+  background: var(--cyan);
+  border-radius: 1px;
+}
+
+.barcode-icon .bar:nth-child(1) { height: 16px; }
+.barcode-icon .bar:nth-child(2) { height: 12px; }
+.barcode-icon .bar:nth-child(3) { height: 16px; }
+.barcode-icon .bar:nth-child(4) { height: 10px; }
+.barcode-icon .bar:nth-child(5) { height: 16px; }
+.barcode-icon .bar:nth-child(6) { height: 14px; }
+.barcode-icon .bar:nth-child(7) { height: 16px; }
+
+.barcode-icon--dim {
+  opacity: 0.3;
+}
+
+.leuze-time-value {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.leuze-time-value.leuze-no-data {
+  opacity: 0.4;
+}
+
+.leuze-count-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.leuze-count-value {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: var(--cyan);
 }
