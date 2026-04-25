@@ -1550,7 +1550,7 @@ body::after {
 .detail-page {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 30px;
   animation: fade-in-up 0.35s ease both;
   min-height: 100%;
 }
@@ -1594,7 +1594,13 @@ body::after {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 24px;
+}
+
+.detail-header > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .detail-header-badges {
@@ -1689,7 +1695,7 @@ body::after {
   font-size: 32px;
   letter-spacing: 0.08em;
   color: var(--text-primary);
-  line-height: 1;
+  line-height: 1.1;
   margin: 0;
 }
 
@@ -1697,7 +1703,7 @@ body::after {
 .detail-side-by-side {
   display: grid;
   grid-template-columns: 300px 1fr;
-  gap: 20px;
+  gap: 28px;
   align-items: start;
   flex: 1;
 }
@@ -1706,7 +1712,7 @@ body::after {
   background: var(--bg-panel);
   border: 1px solid var(--border-mid);
   border-radius: var(--radius-lg);
-  padding: 20px;
+  padding: 24px;
   box-shadow: var(--shadow-panel);
   position: sticky;
   top: 20px;
@@ -1719,8 +1725,33 @@ body::after {
   background: transparent;
 }
 
+.detail-controls-section .controller-section-label {
+  margin-top: 8px;
+  border-radius: var(--radius-sm);
+}
+
+.detail-controls-section .card-controls {
+  gap: 16px;
+}
+
+.detail-controls-section .control-row {
+  gap: 10px;
+}
+
+.detail-controls-section .blink-section {
+  margin-top: 2px;
+  padding-top: 16px;
+}
+
 .device-card--embedded .blink-patterns {
-  flex-wrap: nowrap;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.device-card--embedded .blink-btn {
+  min-width: 0;
+  padding: 7px 0;
 }
 
 .detail-controls-section .device-card:hover {
@@ -1730,6 +1761,24 @@ body::after {
 
 .detail-controls-section .device-card::before {
   display: none;
+}
+
+.detail-controls-section .leuze-data {
+  padding: 18px 0 4px;
+  gap: 18px;
+}
+
+.detail-controls-section .leuze-stat-row {
+  gap: 8px;
+}
+
+.detail-controls-section .leuze-time-value {
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.detail-controls-section .leuze-count-value {
+  line-height: 1.1;
 }
 
 .detail-section-label {
@@ -1745,17 +1794,22 @@ body::after {
   background: var(--bg-panel);
   border: 1px solid var(--border-mid);
   border-radius: var(--radius-lg);
-  padding: 20px;
+  padding: 24px;
   box-shadow: var(--shadow-panel);
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 14px;
   min-height: 520px;
 }
 
 .detail-chart-wrap {
   flex: 1;
   min-height: 300px;
+}
+
+.detail-telemetry-section .telemetry-header {
+  margin-bottom: 2px;
 }
 
 .detail-chart {
@@ -1862,6 +1916,7 @@ body::after {
 @media (max-width: 960px) {
   .detail-side-by-side {
     grid-template-columns: 1fr;
+    gap: 20px;
   }
   .detail-controls-section {
     position: static;
