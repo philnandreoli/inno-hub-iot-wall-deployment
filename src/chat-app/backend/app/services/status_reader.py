@@ -1,5 +1,6 @@
 import logging
 import time
+from datetime import datetime, timedelta
 from typing import Any
 
 from azure.identity import DefaultAzureCredential
@@ -202,17 +203,50 @@ class EventhouseStatusReader:
             "value_bool": self._first_present(row, ["value_bool", "valueBool"]),
         }
 
-    def get_device_telemetry(self, device_name: str, timespan: str = "7d") -> dict[str, Any]:
+    def get_device_telemetry(
+        self,
+        device_name: str,
+        timespan: str | None = "7d",
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> dict[str, Any]:
         validated_device_name = validate_device_name(device_name)
-        validated_timespan = validate_timespan(timespan)
-
-        query = (
-            "declare query_parameters(deviceName:string, queryTimespan:timespan); "
-            "get_iot_measurements_by_iot_instance_name(deviceName, queryTimespan)"
-        )
         properties = ClientRequestProperties()
         properties.set_parameter("deviceName", validated_device_name)
-        properties.set_parameter("queryTimespan", validated_timespan)
+
+        # Set Kusto server-side timeout to 4 minutes for large queries
+        properties.set_option(
+            ClientRequestProperties.request_timeout_option_name,
+            timedelta(minutes=4),
+        )
+
+        if start_date is not None and end_date is not None:
+            range_seconds = (end_date - start_date).total_seconds()
+            # For ranges > 1 day, downsample server-side to prevent OOM on large result sets
+            if range_seconds > 86_400:
+                bin_seconds = max(60, int(range_seconds / 5000))
+                query = (
+                    "declare query_parameters(deviceName:string, startDate:datetime, endDate:datetime); "
+                    "get_iot_measurements_by_iot_instance_name(deviceName, timespan(0s), startDate, endDate)"
+                    " | summarize value_long=avg(value_long), value_bool=take_any(value_bool),"
+                    " iotInstanceName=take_any(iotInstanceName)"
+                    f" by tag, timestamp=bin(timestamp, {bin_seconds}s)"
+                    " | order by tag asc, timestamp asc"
+                )
+            else:
+                query = (
+                    "declare query_parameters(deviceName:string, startDate:datetime, endDate:datetime); "
+                    "get_iot_measurements_by_iot_instance_name(deviceName, timespan(0s), startDate, endDate)"
+                )
+            properties.set_parameter("startDate", start_date.isoformat())
+            properties.set_parameter("endDate", end_date.isoformat())
+        else:
+            validated_timespan = validate_timespan(timespan or "7d")
+            query = (
+                "declare query_parameters(deviceName:string, queryTimespan:timespan); "
+                "get_iot_measurements_by_iot_instance_name(deviceName, queryTimespan)"
+            )
+            properties.set_parameter("queryTimespan", validated_timespan)
 
         response = self._execute_query(query, properties)
         if not response.primary_results:
@@ -228,7 +262,9 @@ class EventhouseStatusReader:
 
         return {
             "deviceName": validated_device_name,
-            "timespan": validated_timespan,
+            "timespan": timespan,
+            "startDate": start_date,
+            "endDate": end_date,
             "source": "fabric-eventhouse",
             "count": len(measurements),
             "measurements": jsonable_encoder(measurements),

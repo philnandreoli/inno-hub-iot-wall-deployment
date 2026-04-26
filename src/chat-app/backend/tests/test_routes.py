@@ -56,13 +56,21 @@ class FakeStatusReader:
             "devices": [{"deviceName": "d1-vm-k3s", "lamp": True}],
         }
 
-    def get_device_telemetry(self, device_name: str, timespan: str = "7d") -> dict[str, Any]:
+    def get_device_telemetry(
+        self,
+        device_name: str,
+        timespan: str | None = "7d",
+        start_date: Any = None,
+        end_date: Any = None,
+    ) -> dict[str, Any]:
         if device_name == "error-vm-k3s":
             raise RuntimeError("boom")
 
         return {
             "deviceName": device_name,
             "timespan": timespan,
+            "startDate": start_date,
+            "endDate": end_date,
             "source": "fabric-eventhouse",
             "count": 1,
             "measurements": [
@@ -171,6 +179,41 @@ def test_device_telemetry_accepts_custom_timespan() -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["timespan"] == "1h"
+
+
+def test_device_telemetry_accepts_date_range() -> None:
+    client, _ = build_test_client()
+
+    response = client.get(
+        "/api/devices/device-1-vm-k3s/telemetry?"
+        "startDate=2026-04-24T00:00:00Z&endDate=2026-04-25T00:00:00Z"
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["startDate"] == "2026-04-24T00:00:00Z"
+    assert body["endDate"] == "2026-04-25T00:00:00Z"
+
+
+def test_device_telemetry_rejects_partial_date_range() -> None:
+    client, _ = build_test_client()
+
+    response = client.get("/api/devices/device-1-vm-k3s/telemetry?startDate=2026-04-24T00:00:00Z")
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Both startDate and endDate are required when filtering by date range"
+
+
+def test_device_telemetry_rejects_invalid_date_order() -> None:
+    client, _ = build_test_client()
+
+    response = client.get(
+        "/api/devices/device-1-vm-k3s/telemetry?"
+        "startDate=2026-04-25T00:00:00Z&endDate=2026-04-24T00:00:00Z"
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "startDate must be before endDate"
 
 
 def test_device_telemetry_rejects_invalid_timespan() -> None:

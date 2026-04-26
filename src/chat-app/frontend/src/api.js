@@ -48,12 +48,33 @@ export async function fetchDeviceStatus(deviceName) {
   return res.json()
 }
 
-export async function fetchDeviceTelemetry(deviceName, timespan = '7d') {
-  const res = await authFetch(
-    `${BASE}/api/devices/${encodeURIComponent(deviceName)}/telemetry?timespan=${encodeURIComponent(timespan)}`,
-  )
-  if (!res.ok) throw new Error(`Telemetry fetch failed: ${res.status}`)
-  return res.json()
+export async function fetchDeviceTelemetry(deviceName, timespan = '7d', startDate = null, endDate = null) {
+  const params = new URLSearchParams()
+  if (startDate && endDate) {
+    params.set('startDate', startDate)
+    params.set('endDate', endDate)
+  } else if (timespan) {
+    params.set('timespan', timespan)
+  }
+  const url = `${BASE}/api/devices/${encodeURIComponent(deviceName)}/telemetry?${params}`
+  const maxRetries = 3
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 120_000)
+    try {
+      const res = await authFetch(url, { signal: controller.signal })
+      clearTimeout(timeoutId)
+      if (!res.ok) throw new Error(`Telemetry fetch failed: ${res.status}`)
+      return await res.json()
+    } catch (err) {
+      clearTimeout(timeoutId)
+      if (attempt < maxRetries - 1 && (err.name === 'AbortError' || err.name === 'TypeError')) {
+        await new Promise(r => setTimeout(r, 1000 * 2 ** attempt))
+        continue
+      }
+      throw err
+    }
+  }
 }
 
 export async function sendLampOn(deviceName) {

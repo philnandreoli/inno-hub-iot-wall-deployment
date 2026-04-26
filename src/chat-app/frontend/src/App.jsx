@@ -28,7 +28,14 @@ export default function App() {
   const { toasts, addToast } = useToast()
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedDevice, setSelectedDevice] = useState(null)
-  const [currentView, setCurrentView] = useState('dashboard')
+  const [pendingDeviceName, setPendingDeviceName] = useState(() => {
+    const match = window.location.pathname.match(/^\/devices\/([^/]+)$/)
+    return match ? decodeURIComponent(match[1]) : null
+  })
+  const [currentView, setCurrentView] = useState(() => {
+    if (window.location.pathname === '/architecture') return 'architecture'
+    return 'dashboard'
+  })
   const [dashboardView, setDashboardView] = useState('grid') // 'grid' | 'map'
   const [hideOffline, setHideOffline] = useState(false)
   const [theme, setTheme] = useState(() => {
@@ -193,6 +200,63 @@ export default function App() {
       [deviceName.toLowerCase()]: newRecord,
     }))
   }, [])
+
+  // Resolve pending device name from URL once data is loaded
+  useEffect(() => {
+    if (!pendingDeviceName || devices.length === 0) return
+    const match = devices.find(d => {
+      const name = getDeviceName(d)
+      return name === pendingDeviceName || name.toLowerCase() === pendingDeviceName.toLowerCase()
+    })
+    if (match) {
+      setSelectedDevice(match)
+      setCurrentView('dashboard')
+    }
+    setPendingDeviceName(null)
+  }, [pendingDeviceName, devices])
+
+  // Sync URL when selectedDevice or currentView changes
+  useEffect(() => {
+    let targetPath = '/'
+    if (currentView === 'architecture') {
+      targetPath = '/architecture'
+    } else if (selectedDevice) {
+      const name = getDeviceName(selectedDevice)
+      targetPath = `/devices/${encodeURIComponent(name)}`
+    }
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState(null, '', targetPath)
+    }
+  }, [selectedDevice, currentView])
+
+  // Handle browser back/forward
+  useEffect(() => {
+    function handlePopState() {
+      const path = window.location.pathname
+      if (path === '/architecture') {
+        setCurrentView('architecture')
+        setSelectedDevice(null)
+      } else if (path.startsWith('/devices/')) {
+        const name = decodeURIComponent(path.replace('/devices/', ''))
+        const match = devices.find(d => {
+          const dName = getDeviceName(d)
+          return dName === name || dName.toLowerCase() === name.toLowerCase()
+        })
+        if (match) {
+          setSelectedDevice(match)
+          setCurrentView('dashboard')
+        } else {
+          setSelectedDevice(null)
+          setCurrentView('dashboard')
+        }
+      } else {
+        setSelectedDevice(null)
+        setCurrentView('dashboard')
+      }
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [devices])
 
   // Show login page when not authenticated (skip during redirect processing)
   if (!isAuthenticated && inProgress === InteractionStatus.None) {

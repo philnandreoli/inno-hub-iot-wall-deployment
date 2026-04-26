@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { DeviceCard } from './DeviceCard.jsx'
+import { CalendarPicker } from './CalendarPicker.jsx'
+import { TimePicker } from './TimePicker.jsx'
 import { fetchDeviceTelemetry } from '../api.js'
 
 const OVERLAY_OPTIONS = [
@@ -64,6 +66,18 @@ function getMetricLabel(metricKey) {
   if (metricKey === 'temperature') return 'Temperature (F)'
   const overlay = OVERLAY_OPTIONS.find(o => o.key === metricKey)
   return overlay?.label ?? metricKey
+}
+
+function safeMin(arr) {
+  let min = Infinity
+  for (let i = 0; i < arr.length; i++) { if (arr[i] < min) min = arr[i] }
+  return min === Infinity ? null : min
+}
+
+function safeMax(arr) {
+  let max = -Infinity
+  for (let i = 0; i < arr.length; i++) { if (arr[i] > max) max = arr[i] }
+  return max === -Infinity ? null : max
 }
 
 function buildMetricSeries(history, metricKey, windowMs) {
@@ -156,16 +170,55 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
   const [zoomRange, setZoomRange] = useState(null)
   const [brushAnchor, setBrushAnchor] = useState(null)
   const [brushCurrent, setBrushCurrent] = useState(null)
+  const [customStartDate, setCustomStartDate] = useState('')
+  const [customEndDate, setCustomEndDate] = useState('')
 
-  const activeWindow = WINDOW_OPTIONS.find(w => w.key === windowKey) ?? WINDOW_OPTIONS[3]
+  const isCustomRange = windowKey === 'custom' && customStartDate !== '' && customEndDate !== ''
+  const hasValidCustomRange = isCustomRange && new Date(customStartDate) < new Date(customEndDate)
 
-  // Fetch telemetry on mount, when window changes, and poll
+  const MAX_DATE_RANGE_DAYS = 60
+  const customRangeDays = isCustomRange
+    ? (new Date(customEndDate) - new Date(customStartDate)) / (1000 * 60 * 60 * 24)
+    : 0
+  const customRangeTooLarge = isCustomRange && customRangeDays > MAX_DATE_RANGE_DAYS
+
+  const activeWindow = isCustomRange
+    ? { key: 'custom', label: 'Custom', ms: Number.MAX_SAFE_INTEGER, timespan: '365d' }
+    : (WINDOW_OPTIONS.find(w => w.key === windowKey) ?? WINDOW_OPTIONS[3])
+
+  // Derive a stable fetch key so the effect only re-fires when the actual query changes
+  const fetchKey = useMemo(() => {
+    if (hasValidCustomRange && !customRangeTooLarge) {
+      return `custom|${customStartDate}|${customEndDate}`
+    }
+    if (customRangeTooLarge) return null // block fetch
+    return `timespan|${activeWindow.timespan}`
+  }, [hasValidCustomRange, customRangeTooLarge, customStartDate, customEndDate, activeWindow.timespan])
+
+  // Fetch telemetry on mount, when query params change, and poll
   useEffect(() => {
+    if (fetchKey === null) {
+      setTelemetryError(`Date range cannot exceed ${MAX_DATE_RANGE_DAYS} days`)
+      setTelemetryLoading(false)
+      return
+    }
     let isCancelled = false
 
     async function loadTelemetry() {
       try {
-        const payload = await fetchDeviceTelemetry(deviceName, activeWindow.timespan)
+        let payload
+        if (fetchKey.startsWith('custom|')) {
+          const parts = fetchKey.split('|')
+          payload = await fetchDeviceTelemetry(
+            deviceName,
+            null,
+            new Date(parts[1]).toISOString(),
+            new Date(parts[2]).toISOString(),
+          )
+        } else {
+          const timespan = fetchKey.replace('timespan|', '')
+          payload = await fetchDeviceTelemetry(deviceName, timespan)
+        }
         if (!isCancelled) {
           const points = (payload?.measurements ?? []).map(normalizeTelemetryRow)
           setTelemetryData(points)
@@ -188,7 +241,7 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
       isCancelled = true
       clearInterval(intervalId)
     }
-  }, [deviceName, activeWindow.timespan, telemetryRefreshKey])
+  }, [deviceName, fetchKey, telemetryRefreshKey])
 
   // Reset hover on metric/window change
 
@@ -203,9 +256,37 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
   )
 
   const visibleSeries = useMemo(() => {
-    if (!zoomRange) return graphSeries
-    return graphSeries.filter(p => p.ts >= zoomRange.minTs && p.ts <= zoomRange.maxTs)
-  }, [graphSeries, zoomRange])
+    let series = graphSeries
+    if (zoomRange) {
+      series = series.filter(p => p.ts >= zoomRange.minTs && p.ts <= zoomRange.maxTs)
+    }
+    // Min-max bucket downsampling: preserves extremes (spikes) in each bucket
+    const MAX_RENDER_POINTS = 2000
+    if (series.length <= MAX_RENDER_POINTS) return series
+    const bucketCount = Math.floor(MAX_RENDER_POINTS / 2)
+    const bucketSize = series.length / bucketCount
+    const downsampled = [series[0]] // always include first point
+    for (let b = 0; b < bucketCount; b++) {
+      const start = Math.round(b * bucketSize)
+      const end = Math.min(Math.round((b + 1) * bucketSize), series.length)
+      if (end <= start) continue
+      let minIdx = start, maxIdx = start
+      for (let i = start + 1; i < end; i++) {
+        if (series[i][activeMetric] < series[minIdx][activeMetric]) minIdx = i
+        if (series[i][activeMetric] > series[maxIdx][activeMetric]) maxIdx = i
+      }
+      // Add min and max in chronological order
+      const first = Math.min(minIdx, maxIdx)
+      const second = Math.max(minIdx, maxIdx)
+      downsampled.push(series[first])
+      if (first !== second) downsampled.push(series[second])
+    }
+    // Always include the last point
+    if (downsampled[downsampled.length - 1] !== series[series.length - 1]) {
+      downsampled.push(series[series.length - 1])
+    }
+    return downsampled
+  }, [graphSeries, zoomRange, activeMetric])
 
   // Build overlay event series for fan/lamp
   const overlaySeries = useMemo(() => {
@@ -233,8 +314,20 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
   const pointCount = visibleSeries.length
 
   const metricValues = visibleSeries.map(p => p[activeMetric])
-  const rawMinValue = pointCount > 0 ? Math.min(...metricValues) : 0
-  const rawMaxValue = pointCount > 0 ? Math.max(...metricValues) : 1
+  // Full-dataset min/max for stats and y-axis (before downsampling)
+  const fullMetricValues = useMemo(() => {
+    let series = graphSeries
+    if (zoomRange) {
+      series = series.filter(p => p.ts >= zoomRange.minTs && p.ts <= zoomRange.maxTs)
+    }
+    return series.map(p => p[activeMetric])
+  }, [graphSeries, zoomRange, activeMetric])
+  const statsMin = fullMetricValues.length ? safeMin(fullMetricValues) : null
+  const statsMax = fullMetricValues.length ? safeMax(fullMetricValues) : null
+
+  // Use full dataset for y-axis range so downsampling doesn't clip extremes
+  const rawMinValue = fullMetricValues.length > 0 ? safeMin(fullMetricValues) : 0
+  const rawMaxValue = fullMetricValues.length > 0 ? safeMax(fullMetricValues) : 1
   const hasRange = rawMaxValue - rawMinValue > 0
   const rangeBuffer = hasRange ? (rawMaxValue - rawMinValue) * 0.08 : 0.5
   const paddedMinValue = rawMinValue - rangeBuffer
@@ -244,10 +337,23 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
   const plotHeight = chartHeight - chartPaddingTop - chartPaddingBottom
   const plotWidth = chartWidth - chartPaddingLeft - chartPaddingRight
 
-  const points = visibleSeries.map((point, index) => {
-    const x =
-      chartPaddingLeft +
-      (pointCount <= 1 ? 0 : (index / (pointCount - 1)) * plotWidth)
+  // Determine time bounds: use selected date range if custom, otherwise data bounds
+  const timeMin = useMemo(() => {
+    if (hasValidCustomRange) return new Date(customStartDate).getTime()
+    if (visibleSeries.length > 0) return visibleSeries[0].ts
+    return Date.now() - activeWindow.ms
+  }, [hasValidCustomRange, customStartDate, visibleSeries, activeWindow.ms])
+
+  const timeMax = useMemo(() => {
+    if (hasValidCustomRange) return new Date(customEndDate).getTime()
+    if (visibleSeries.length > 0) return visibleSeries[visibleSeries.length - 1].ts
+    return Date.now()
+  }, [hasValidCustomRange, customEndDate, visibleSeries])
+
+  const timeSpan = timeMax - timeMin || 1
+
+  const points = visibleSeries.map((point) => {
+    const x = chartPaddingLeft + ((point.ts - timeMin) / timeSpan) * plotWidth
     const normalized = (point[activeMetric] - paddedMinValue) / valueSpan
     const y = chartPaddingTop + plotHeight - normalized * plotHeight
     return { x, y, ts: point.ts, value: point[activeMetric] }
@@ -301,23 +407,24 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
     ? pathD + ` L ${points[points.length - 1].x.toFixed(2)} ${areaBottom} L ${points[0].x.toFixed(2)} ${areaBottom} Z`
     : ''
 
-  // X-axis tick labels — pick ~5-6 evenly spaced ticks
+  // X-axis tick labels — evenly spaced across the time range
   const xAxisTicks = useMemo(() => {
     if (points.length < 2) return []
-    const maxTicks = Math.min(6, points.length)
-    const step = (points.length - 1) / (maxTicks - 1)
+    const isMultiDay = timeSpan > 24 * 60 * 60 * 1000
+    const maxTicks = 6
     const ticks = []
     for (let i = 0; i < maxTicks; i++) {
-      const idx = Math.round(i * step)
-      const p = points[idx]
-      if (p) {
-        const d = new Date(p.ts)
-        const label = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        ticks.push({ x: p.x, label })
-      }
+      const ratio = i / (maxTicks - 1)
+      const ts = timeMin + ratio * timeSpan
+      const x = chartPaddingLeft + ratio * plotWidth
+      const d = new Date(ts)
+      const label = isMultiDay
+        ? d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+        : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      ticks.push({ x, label })
     }
     return ticks
-  }, [points])
+  }, [timeMin, timeSpan, plotWidth, chartPaddingLeft, points.length])
 
   // Interpolated hover point that tracks cursor position on the line
   const cursorPoint = useMemo(() => {
@@ -372,8 +479,15 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
     if (brushAnchor !== null) {
       setBrushCurrent(ratio)
     } else {
-      const nearestIndex = Math.round(ratio * (points.length - 1))
-      setHoveredPointIndex(nearestIndex)
+      // Find nearest point by x-position
+      const targetX = chartPaddingLeft + ratio * plotWidth
+      let bestIdx = 0
+      let bestDist = Math.abs(points[0].x - targetX)
+      for (let i = 1; i < points.length; i++) {
+        const dist = Math.abs(points[i].x - targetX)
+        if (dist < bestDist) { bestDist = dist; bestIdx = i }
+      }
+      setHoveredPointIndex(bestIdx)
     }
   }
 
@@ -382,12 +496,9 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
       const r1 = Math.min(brushAnchor, brushCurrent)
       const r2 = Math.max(brushAnchor, brushCurrent)
       if (r2 - r1 > 0.03) {
-        const minTs = points[0].ts
-        const maxTs = points[points.length - 1].ts
-        const tsSpan = maxTs - minTs
         setZoomRange({
-          minTs: minTs + r1 * tsSpan,
-          maxTs: minTs + r2 * tsSpan,
+          minTs: timeMin + r1 * timeSpan,
+          maxTs: timeMin + r2 * timeSpan,
         })
         setHoveredPointIndex(null)
       }
@@ -491,12 +602,79 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
                 <button
                   key={opt.key}
                   type="button"
-                  className={`telemetry-chip ${windowKey === opt.key ? 'active' : ''}`}
-                  onClick={() => setWindowKey(opt.key)}
+                  className={`telemetry-chip ${windowKey === opt.key && !isCustomRange ? 'active' : ''}`}
+                  onClick={() => {
+                    setWindowKey(opt.key)
+                    setCustomStartDate('')
+                    setCustomEndDate('')
+                  }}
                 >
                   {opt.label}
                 </button>
               ))}
+            </div>
+            <div className="telemetry-date-range">
+              <span className="telemetry-date-label-text">Start</span>
+              <CalendarPicker
+                label="Start date"
+                value={customStartDate ? customStartDate.split('T')[0] : ''}
+                onChange={(dateStr) => {
+                  const time = customStartDate ? customStartDate.split('T')[1] || '00:00' : '00:00'
+                  const val = dateStr ? `${dateStr}T${time}` : ''
+                  setCustomStartDate(val)
+                  if (val && customEndDate) setWindowKey('custom')
+                }}
+              />
+              <TimePicker
+                value={customStartDate ? (customStartDate.split('T')[1] || '00:00') : ''}
+                onChange={(timeStr) => {
+                  const date = customStartDate ? customStartDate.split('T')[0] : ''
+                  if (!date) return
+                  const val = `${date}T${timeStr}`
+                  setCustomStartDate(val)
+                  if (val && customEndDate) setWindowKey('custom')
+                }}
+                disabled={!customStartDate}
+              />
+              <span className="telemetry-date-separator">→</span>
+              <span className="telemetry-date-label-text">End</span>
+              <CalendarPicker
+                label="End date"
+                value={customEndDate ? customEndDate.split('T')[0] : ''}
+                onChange={(dateStr) => {
+                  const time = customEndDate ? customEndDate.split('T')[1] || '23:59' : '23:59'
+                  const val = dateStr ? `${dateStr}T${time}` : ''
+                  setCustomEndDate(val)
+                  if (customStartDate && val) setWindowKey('custom')
+                }}
+              />
+              <TimePicker
+                value={customEndDate ? (customEndDate.split('T')[1] || '23:59') : ''}
+                onChange={(timeStr) => {
+                  const date = customEndDate ? customEndDate.split('T')[0] : ''
+                  if (!date) return
+                  const val = `${date}T${timeStr}`
+                  setCustomEndDate(val)
+                  if (customStartDate && val) setWindowKey('custom')
+                }}
+                disabled={!customEndDate}
+              />
+              {isCustomRange && (
+                <button
+                  type="button"
+                  className="telemetry-chip telemetry-date-clear"
+                  onClick={() => {
+                    setCustomStartDate('')
+                    setCustomEndDate('')
+                    setWindowKey(1440)
+                  }}
+                >
+                  ✕ Clear
+                </button>
+              )}
+              {isCustomRange && !hasValidCustomRange && (
+                <span className="telemetry-date-error">Start must be before End</span>
+              )}
             </div>
           </div>
         </div>
@@ -614,9 +792,6 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
               {/* Overlay event markers for fan/lamp */}
               {overlaySeries.map(overlay => {
                 if (!overlay.events.length || points.length < 2) return null
-                const minTs = points[0].ts
-                const maxTs = points[points.length - 1].ts
-                const tsSpan = maxTs - minTs || 1
                 // Only render state-change transitions to keep markers sparse
                 const transitions = []
                 for (let i = 0; i < overlay.events.length; i++) {
@@ -625,7 +800,7 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
                   }
                 }
                 return transitions.map((evt, i) => {
-                  const xRatio = (evt.ts - minTs) / tsSpan
+                  const xRatio = (evt.ts - timeMin) / timeSpan
                   const x = chartPaddingLeft + xRatio * plotWidth
                   if (x < chartPaddingLeft || x > chartWidth - chartPaddingRight) return null
                   const markerY = chartPaddingTop + plotHeight - 10
@@ -718,11 +893,11 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
           </span>
           <span className="detail-meta-item">
             <span className="detail-meta-label">Min</span>
-            <span className="detail-meta-value" style={tempValueStyle(metricValues.length ? Math.min(...metricValues) : null)}>{formatMetricValue(metricValues.length ? Math.min(...metricValues) : null, activeMetric)}</span>
+            <span className="detail-meta-value" style={tempValueStyle(statsMin)}>{formatMetricValue(statsMin, activeMetric)}</span>
           </span>
           <span className="detail-meta-item">
             <span className="detail-meta-label">Max</span>
-            <span className="detail-meta-value" style={tempValueStyle(metricValues.length ? Math.max(...metricValues) : null)}>{formatMetricValue(metricValues.length ? Math.max(...metricValues) : null, activeMetric)}</span>
+            <span className="detail-meta-value" style={tempValueStyle(statsMax)}>{formatMetricValue(statsMax, activeMetric)}</span>
           </span>
           <span className="detail-meta-item">
             <span className="detail-meta-label">Timestamp</span>
@@ -730,7 +905,7 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
           </span>
           <span className="detail-meta-item">
             <span className="detail-meta-label">Data Points</span>
-            <span className="detail-meta-value">{pointCount}</span>
+            <span className="detail-meta-value">{fullMetricValues.length}</span>
           </span>
         </div>
 

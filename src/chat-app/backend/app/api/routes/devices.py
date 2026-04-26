@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Any, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
@@ -6,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from app.dependencies import get_publisher, get_status_reader, verify_token
 from app.services.mqtt_publisher import MqttPublisher
 from app.services.status_reader import EventhouseStatusReader
-from app.validators import validate_device_name, validate_timespan
+from app.validators import validate_date_range, validate_device_name, validate_timespan
 
 logger = logging.getLogger(__name__)
 
@@ -67,20 +68,35 @@ def get_device_telemetry(
     reader: StatusReaderDep,
     _claims: ClaimsDep,
     timespan: Annotated[str, Query(description="KQL timespan (e.g. 7d, 1h, 30min)")] = "7d",
+    start_date: Annotated[
+        datetime | None,
+        Query(alias="startDate", description="Start timestamp (ISO 8601)")
+    ] = None,
+    end_date: Annotated[
+        datetime | None,
+        Query(alias="endDate", description="End timestamp (ISO 8601)")
+    ] = None,
 ) -> dict[str, Any]:
     validated_device_name = validate_device_name(device_name)
-    validated_timespan = validate_timespan(timespan)
+    validated_start_date, validated_end_date = validate_date_range(start_date, end_date)
+
+    # Only validate/use timespan when no date range is provided
+    validated_timespan = validate_timespan(timespan) if validated_start_date is None else None
 
     try:
         return reader.get_device_telemetry(
             device_name=validated_device_name,
             timespan=validated_timespan,
+            start_date=validated_start_date,
+            end_date=validated_end_date,
         )
     except Exception as exc:  # noqa: BLE001
         logger.exception(
-            "Failed to fetch telemetry for %s with timespan %s",
+            "Failed to fetch telemetry for %s with timespan %s start_date=%s end_date=%s",
             validated_device_name,
             validated_timespan,
+            validated_start_date,
+            validated_end_date,
         )
         raise HTTPException(status_code=502, detail="Failed to fetch device telemetry") from exc
 

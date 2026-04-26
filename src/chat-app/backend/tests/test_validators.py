@@ -1,7 +1,9 @@
+from datetime import datetime, timezone
+
 import pytest
 from fastapi import HTTPException
 
-from app.validators import validate_device_name, validate_timespan
+from app.validators import validate_date_range, validate_device_name, validate_timespan
 
 
 def test_validate_device_name_accepts_expected_pattern() -> None:
@@ -38,3 +40,50 @@ def test_validate_timespan_rejects_invalid_values(timespan: str) -> None:
 
     assert exc_info.value.status_code == 400
     assert exc_info.value.detail == "Invalid timespan"
+
+
+def test_validate_date_range_accepts_valid_range() -> None:
+    start_date = datetime(2026, 4, 24, 0, 0, tzinfo=timezone.utc)
+    end_date = datetime(2026, 4, 25, 0, 0, tzinfo=timezone.utc)
+
+    assert validate_date_range(start_date, end_date) == (start_date, end_date)
+
+
+@pytest.mark.parametrize(
+    "start_date,end_date",
+    [
+        (datetime(2026, 4, 24, 0, 0, tzinfo=timezone.utc), None),
+        (None, datetime(2026, 4, 25, 0, 0, tzinfo=timezone.utc)),
+    ],
+)
+def test_validate_date_range_rejects_partial_range(
+    start_date: datetime | None,
+    end_date: datetime | None,
+) -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        validate_date_range(start_date, end_date)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "Both startDate and endDate are required when filtering by date range"
+
+
+def test_validate_date_range_rejects_invalid_order() -> None:
+    start_date = datetime(2026, 4, 25, 0, 0, tzinfo=timezone.utc)
+    end_date = datetime(2026, 4, 24, 0, 0, tzinfo=timezone.utc)
+
+    with pytest.raises(HTTPException) as exc_info:
+        validate_date_range(start_date, end_date)
+
+    assert exc_info.value.status_code == 400
+    assert exc_info.value.detail == "startDate must be before endDate"
+
+
+def test_validate_date_range_rejects_range_exceeding_max_days() -> None:
+    start_date = datetime(2026, 1, 1, 0, 0, tzinfo=timezone.utc)
+    end_date = datetime(2026, 4, 1, 0, 0, tzinfo=timezone.utc)  # 90 days
+
+    with pytest.raises(HTTPException) as exc_info:
+        validate_date_range(start_date, end_date)
+
+    assert exc_info.value.status_code == 400
+    assert "60 days" in exc_info.value.detail
