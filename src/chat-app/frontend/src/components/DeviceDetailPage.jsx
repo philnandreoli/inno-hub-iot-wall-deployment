@@ -310,7 +310,7 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
   const chartPaddingLeft = 64
   const chartPaddingRight = 40
   const chartPaddingTop = 16
-  const chartPaddingBottom = 46
+  const chartPaddingBottom = 62
   const pointCount = visibleSeries.length
 
   const metricValues = visibleSeries.map(p => p[activeMetric])
@@ -410,7 +410,6 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
   // X-axis tick labels — evenly spaced across the time range
   const xAxisTicks = useMemo(() => {
     if (points.length < 2) return []
-    const isMultiDay = timeSpan > 24 * 60 * 60 * 1000
     const maxTicks = 6
     const ticks = []
     for (let i = 0; i < maxTicks; i++) {
@@ -418,10 +417,9 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
       const ts = timeMin + ratio * timeSpan
       const x = chartPaddingLeft + ratio * plotWidth
       const d = new Date(ts)
-      const label = isMultiDay
-        ? d.toLocaleDateString([], { month: 'short', day: 'numeric' })
-        : d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      ticks.push({ x, label })
+      const datePart = d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+      const timePart = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      ticks.push({ x, dateLabel: datePart, timeLabel: timePart })
     }
     return ticks
   }, [timeMin, timeSpan, plotWidth, chartPaddingLeft, points.length])
@@ -771,11 +769,19 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
                   />
                   <text
                     x={tick.x}
-                    y={chartPaddingTop + plotHeight + 22}
+                    y={chartPaddingTop + plotHeight + 18}
                     textAnchor="middle"
                     className="chart-axis-label"
                   >
-                    {tick.label}
+                    {tick.dateLabel}
+                  </text>
+                  <text
+                    x={tick.x}
+                    y={chartPaddingTop + plotHeight + 34}
+                    textAnchor="middle"
+                    className="chart-axis-label"
+                  >
+                    {tick.timeLabel}
                   </text>
                 </g>
               ))}
