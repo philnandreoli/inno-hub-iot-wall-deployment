@@ -19,6 +19,7 @@ class Settings:
     fabric_eventhouse_database: str
     fabric_eventhouse_query_retries: int
     applicationinsights_connection_string: str
+    enable_docs: bool
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -42,4 +43,5 @@ class Settings:
             applicationinsights_connection_string=os.getenv(
                 "APPLICATIONINSIGHTS_CONNECTION_STRING", ""
             ).strip(),
+            enable_docs=os.getenv("ENABLE_DOCS", "true").strip().lower() in ("true", "1", "yes"),
         )
