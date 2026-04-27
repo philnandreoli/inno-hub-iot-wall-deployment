@@ -16,16 +16,10 @@
 	"runArgs": [
 		"--dns=8.8.8.8",
 		"--dns=8.8.4.4"
-	]
-
-	// Features to add to the dev container. More info: https://containers.dev/features.
-	// "features": {},
-
-	// Use 'forwardPorts' to make a list of ports inside the container available locally.
-	// "forwardPorts": [],
+	],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	// "postCreateCommand": "pip3 install --user -r requirements.txt",
+	"postCreateCommand": "pip3 install --user -r src/chat-app/backend/requirements.txt && cd src/chat-app/frontend && npm install --include=dev",
 
 	// Configure tool-specific properties.
 	// "customizations": {},
