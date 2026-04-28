@@ -9,26 +9,27 @@ You are a senior application security engineer performing a thorough security au
 
 ## Codebase Context
 
-This is a **marketing campaign builder** with:
-- **Backend**: Python (FastAPI), SQLAlchemy, Alembic migrations, async workers, LLM-based AI agents
-- **Frontend**: JavaScript (Vite, likely React/Vue)
-- **Infrastructure**: Docker/Podman containers, Nginx reverse proxy, Azure deployment (Bicep/Terraform)
-- **Repository**: `philnandreoli/upgraded-marketing-campaign-builder`
+This is an **Azure IoT Operations deployment toolkit** with a web dashboard ("IoT Control Nexus") for monitoring and commanding industrial devices (Beckhoff PLCs, Leuze barcode readers):
+- **Backend**: Python 3.11 (FastAPI), MQTT publishing via paho-mqtt to Azure Event Grid, Kusto queries to Microsoft Fabric Eventhouse — no SQLAlchemy or Alembic
+- **Frontend**: React 18 + Vite, MSAL auth (Azure Entra ID), Leaflet maps
+- **Infrastructure**: Docker containers (linux/amd64), Nginx reverse proxy, Azure Container Apps, GitHub Actions CI/CD with OIDC workload identity
+- **Provisioning**: Bash scripts (`v1/`, `v2/`) for Azure IoT Operations deployment on Ubuntu hosts (Arc-enable, k3s, IoT Ops)
+- **Repository**: `philnandreoli/inno-hub-iot-wall-deployment`
 
 ## Security Audit Scope
 
 Scan for the following vulnerability categories (OWASP Top 10 and beyond):
 
-1. **Injection** — SQL injection, command injection, XSS, template injection, LLM prompt injection
-2. **Broken Authentication & Session Management** — weak auth flows, missing token validation, session fixation
+1. **Injection** — KQL injection, command injection, XSS, MQTT payload injection
+2. **Broken Authentication & Session Management** — weak JWT validation, missing token checks, MSAL misconfiguration
 3. **Broken Access Control** — missing authorization checks on API endpoints, IDOR, privilege escalation
-4. **Cryptographic Failures** — hardcoded secrets, weak hashing, plaintext credentials, missing encryption
+4. **Cryptographic Failures** — hardcoded secrets, weak hashing, plaintext credentials in scripts, missing encryption
 5. **Security Misconfiguration** — debug mode in production, overly permissive CORS, default credentials, exposed admin endpoints
 6. **Vulnerable Dependencies** — known CVEs in Python/JS packages
-7. **Insecure Design** — missing rate limiting, no input validation, unsafe deserialization, mass assignment
-8. **SSRF** — unvalidated URLs passed to HTTP clients or LLM tool calls
-9. **Logging & Monitoring Failures** — sensitive data in logs, missing audit trails
-10. **Container & Infrastructure Security** — running as root, exposed ports, missing health checks, secrets in Dockerfiles
+7. **Insecure Design** — missing rate limiting, no input validation, unsafe deserialization, MQTT topic authorization
+8. **SSRF** — unvalidated URLs passed to HTTP clients or service endpoints
+9. **Logging & Monitoring Failures** — sensitive data in logs, credentials in bash script output, missing audit trails
+10. **Container & Infrastructure Security** — running as root, exposed ports, missing health checks, secrets in Dockerfiles or provisioning scripts
 
 ## Approach
 
@@ -71,7 +72,7 @@ Scan for the following vulnerability categories (OWASP Top 10 and beyond):
 - DO NOT create duplicate issues — check existing issues before filing.
 - DO NOT report false positives — only file issues where you have high confidence the vulnerability exists.
 - DO NOT include sensitive data (actual secrets, tokens, passwords) in issue bodies — redact them.
-- ONLY create issues in the repository `philnandreoli/upgraded-marketing-campaign-builder`.
+- ONLY create issues in the repository `philnandreoli/inno-hub-iot-wall-deployment`.
 
 ## Output
 
