@@ -337,18 +337,21 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
   const plotHeight = chartHeight - chartPaddingTop - chartPaddingBottom
   const plotWidth = chartWidth - chartPaddingLeft - chartPaddingRight
 
-  // Determine time bounds: use selected date range if custom, otherwise data bounds
+  // Determine time bounds: zoom range first, then actual data bounds (so chart
+  // scales to where data exists, not the full requested date range)
   const timeMin = useMemo(() => {
-    if (hasValidCustomRange) return new Date(customStartDate).getTime()
+    if (zoomRange) return zoomRange.minTs
     if (visibleSeries.length > 0) return visibleSeries[0].ts
+    if (hasValidCustomRange) return new Date(customStartDate).getTime()
     return Date.now() - activeWindow.ms
-  }, [hasValidCustomRange, customStartDate, visibleSeries, activeWindow.ms])
+  }, [zoomRange, visibleSeries, hasValidCustomRange, customStartDate, activeWindow.ms])
 
   const timeMax = useMemo(() => {
-    if (hasValidCustomRange) return new Date(customEndDate).getTime()
+    if (zoomRange) return zoomRange.maxTs
     if (visibleSeries.length > 0) return visibleSeries[visibleSeries.length - 1].ts
+    if (hasValidCustomRange) return new Date(customEndDate).getTime()
     return Date.now()
-  }, [hasValidCustomRange, customEndDate, visibleSeries])
+  }, [zoomRange, visibleSeries, hasValidCustomRange, customEndDate])
 
   const timeSpan = timeMax - timeMin || 1
 
