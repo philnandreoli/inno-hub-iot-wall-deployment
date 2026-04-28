@@ -1,10 +1,10 @@
 import time
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import jwt
 import pytest
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import HTTPException
 from fastapi.security import HTTPAuthorizationCredentials
@@ -38,7 +38,7 @@ def _make_settings() -> Settings:
     )
 
 
-def _make_rsa_key_pair() -> tuple[Any, Any]:
+def _make_rsa_key_pair() -> tuple[RSAPrivateKey, RSAPublicKey]:
     private_key = rsa.generate_private_key(
         public_exponent=65537,
         key_size=2048,
@@ -48,7 +48,7 @@ def _make_rsa_key_pair() -> tuple[Any, Any]:
 
 
 def _make_token(
-    private_key: Any,
+    private_key: RSAPrivateKey,
     *,
     issuer: str,
     audience: str = CLIENT_ID,
@@ -71,7 +71,7 @@ def _make_token(
     )
 
 
-def _make_verifier_with_key(public_key: Any, kid: str = "test-kid") -> TokenVerifier:
+def _make_verifier_with_key(public_key: RSAPublicKey, kid: str = "test-kid") -> TokenVerifier:
     verifier = TokenVerifier(settings=_make_settings())
     verifier._jwks_cache = {kid: public_key}
     verifier._jwks_cache_time = time.time()
