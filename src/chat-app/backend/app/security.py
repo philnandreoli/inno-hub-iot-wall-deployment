@@ -15,10 +15,10 @@ bearer_scheme = HTTPBearer(auto_error=False)
 class TokenVerifier:
     def __init__(self, settings: Settings) -> None:
         self._client_id = settings.azure_client_id
-        self._issuer_prefixes = (
-            f"https://login.microsoftonline.com/{settings.azure_tenant_id}/",
+        self._issuers = [
+            f"https://login.microsoftonline.com/{settings.azure_tenant_id}/v2.0",
             f"https://sts.windows.net/{settings.azure_tenant_id}/",
-        )
+        ]
         self._jwks_url = (
             f"https://login.microsoftonline.com/{settings.azure_tenant_id}/discovery/v2.0/keys"
         )
@@ -82,15 +82,11 @@ class TokenVerifier:
                 public_key,
                 algorithms=["RS256"],
                 audience=[self._client_id, f"api://{self._client_id}"],
-                options={"verify_iss": False},
+                issuer=self._issuers,
             )
         except jwt.ExpiredSignatureError as exc:
             raise HTTPException(status_code=401, detail="Token expired") from exc
         except jwt.InvalidTokenError as exc:
             raise HTTPException(status_code=401, detail="Invalid token") from exc
-
-        issuer = claims.get("iss", "")
-        if not any(issuer.startswith(prefix) for prefix in self._issuer_prefixes):
-            raise HTTPException(status_code=401, detail="Invalid token issuer")
 
         return claims
