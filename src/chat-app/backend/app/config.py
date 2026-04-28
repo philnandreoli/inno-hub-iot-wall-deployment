@@ -43,5 +43,5 @@ class Settings:
             applicationinsights_connection_string=os.getenv(
                 "APPLICATIONINSIGHTS_CONNECTION_STRING", ""
             ).strip(),
-            enable_docs=os.getenv("ENABLE_DOCS", "true").strip().lower() in ("true", "1", "yes"),
+            enable_docs=os.getenv("ENABLE_DOCS", "false").strip().lower() in ("true", "1", "yes"),
         )
