@@ -78,7 +78,6 @@ jobs:
             VITE_APPINSIGHTS_CONNECTION_STRING=${{ secrets.VITE_APPINSIGHTS_CONNECTION_STRING }}
           tags: |
             ${{ secrets.ACR_HOSTNAME }}/iot-wall-frontend:${{ github.sha }}
-            ${{ secrets.ACR_HOSTNAME }}/iot-wall-frontend:latest
 
   deploy-dev:
     needs: docker-build
