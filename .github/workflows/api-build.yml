@@ -85,7 +85,6 @@ jobs:
           provenance: false
           tags: |
             ${{ secrets.ACR_HOSTNAME }}/iot-wall-api:${{ github.sha }}
-            ${{ secrets.ACR_HOSTNAME }}/iot-wall-api:latest
 
   deploy-dev:
     needs: docker-build
