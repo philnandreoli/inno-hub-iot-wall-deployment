@@ -3,9 +3,16 @@ import { ApplicationInsights } from '@microsoft/applicationinsights-web'
 let appInsights = null
 
 export function initTelemetry() {
-  const connectionString = import.meta.env.VITE_APPINSIGHTS_CONNECTION_STRING
-  if (!connectionString) {
-    console.warn('[Telemetry] VITE_APPINSIGHTS_CONNECTION_STRING not set — telemetry disabled')
+  // In local dev, VITE_APPINSIGHTS_CONNECTION_STRING can be set in .env.local.
+  // In production, docker-entrypoint.sh replaces the __APPINSIGHTS_CONNECTION_STRING__
+  // placeholder in index.html (window.__APP_CONFIG__) at container start from the runtime
+  // env var, so the secret is never baked into the image layer.
+  const runtimeConfig = (typeof window !== 'undefined' && window.__APP_CONFIG__) || {}
+  const connectionString =
+    runtimeConfig.appInsightsConnectionString ||
+    import.meta.env.VITE_APPINSIGHTS_CONNECTION_STRING
+  if (!connectionString || connectionString === '__APPINSIGHTS_CONNECTION_STRING__') {
+    console.warn('[Telemetry] App Insights connection string not configured — telemetry disabled')
     return null
   }
 
