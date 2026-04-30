@@ -16,9 +16,11 @@ export const msalConfig = {
   },
   system: {
     loggerOptions: {
-      logLevel: LogLevel.Verbose,
+      logLevel: import.meta.env.DEV ? LogLevel.Verbose : LogLevel.Error,
       loggerCallback: (_level, message, containsPii) => {
-        if (!containsPii) console.debug('[MSAL]', message)
+        if (!containsPii && import.meta.env.DEV) {
+          console.debug('[MSAL]', message)
+        }
       },
     },
   },
