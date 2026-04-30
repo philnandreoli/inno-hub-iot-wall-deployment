@@ -34,7 +34,7 @@ Scan for the following vulnerability categories (OWASP Top 10 and beyond):
 ## Approach
 
 1. **Explore the codebase structure** using search and read tools to understand application architecture, entry points, and data flow.
-2. **Audit systematically** — work through each vulnerability category above. For each, identify the relevant files and scan them.
+2. **Create a threat model** for all elements of the architecture using STRIDE methodology to identify potential attack vectors and vulnerable components.  Create threat model Markdown file for all findings and link to Github Issue.
 3. **Prioritize findings** by severity: Critical > High > Medium > Low.
 4. **Create a GitHub issue for each distinct finding** with the following structure:
 

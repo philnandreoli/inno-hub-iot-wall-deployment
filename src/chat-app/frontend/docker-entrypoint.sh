@@ -27,16 +27,21 @@ BACKEND_HOST=$(echo "$BACKEND_URL" | sed -E 's|https?://([^/:]+).*|\1|')
 sed -i "s|__BACKEND_URL__|${BACKEND_URL}|g" /etc/nginx/conf.d/default.conf
 sed -i "s|__BACKEND_HOST__|${BACKEND_HOST}|g" /etc/nginx/conf.d/default.conf
 
-# Replace the App Insights connection string placeholder in index.html.
-# The value is injected at runtime so it is never baked into the image layer.
+# Write the runtime config file. The value is injected at runtime so it is
+# never baked into the image layer. The external script satisfies CSP
+# script-src 'self' without needing 'unsafe-inline'.
 if [ -n "$APPINSIGHTS_CONNECTION_STRING" ]; then
     _cs_lines=$(printf '%s' "$APPINSIGHTS_CONNECTION_STRING" | wc -l)
     if [ "$_cs_lines" -ne 0 ]; then
         echo "ERROR: Invalid APPINSIGHTS_CONNECTION_STRING — must be a single-line value" >&2
         exit 1
     fi
-    sed -i "s|__APPINSIGHTS_CONNECTION_STRING__|${APPINSIGHTS_CONNECTION_STRING}|g" \
-        /usr/share/nginx/html/index.html
 fi
+
+cat > /usr/share/nginx/html/config.js <<EOF
+window.__APP_CONFIG__ = {
+  "appInsightsConnectionString": "${APPINSIGHTS_CONNECTION_STRING}"
+};
+EOF
 
 exec nginx -g 'daemon off;'
