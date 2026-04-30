@@ -94,8 +94,9 @@ jobs:
       - name: Deploy to Container Apps
         working-directory: .
         run: |
-          az containerapp update \
-            --name ${{ vars.FRONTEND_CONTAINER_APP_NAME }} \
-            --resource-group ${{ vars.RESOURCE_GROUP }} \
-            --set-env-vars BACKEND_URL=${{ vars.BACKEND_URL }} APPINSIGHTS_CONNECTION_STRING=${{ vars.VITE_APPINSIGHTS_CONNECTION_STRING }} \
-            --image ${{ secrets.ACR_HOSTNAME }}/iot-wall-frontend:${{ github.sha }}
+          az containerapp update --name "${{ vars.FRONTEND_CONTAINER_APP_NAME }}" \
+            --resource-group "${{ vars.RESOURCE_GROUP }}" \
+            --image "${{ secrets.ACR_HOSTNAME }}/iot-wall-frontend:${{ github.sha }}" \
+            --set-env-vars \
+              BACKEND_URL="${{ vars.BACKEND_URL }}" \
+              APPINSIGHTS_CONNECTION_STRING="${{ vars.VITE_APPINSIGHTS_CONNECTION_STRING }}"
