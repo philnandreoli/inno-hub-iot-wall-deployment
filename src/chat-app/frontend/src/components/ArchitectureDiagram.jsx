@@ -118,15 +118,13 @@ export function ArchitectureDiagram({ onBack }) {
         const id = 'arch-diagram-' + Date.now()
         const { svg } = await mermaid.render(id, DIAGRAM_DEFINITION)
         if (!cancelled && containerRef.current) {
-          const parser = new DOMParser()
-          const svgDoc = parser.parseFromString(svg, 'image/svg+xml')
-          const svgEl = svgDoc.documentElement
+          containerRef.current.innerHTML = svg
+          const svgEl = containerRef.current.querySelector('svg')
           // Make SVG responsive
           svgEl.removeAttribute('height')
           svgEl.style.width = '100%'
           svgEl.style.maxWidth = '1200px'
           svgEl.style.height = 'auto'
-          containerRef.current.replaceChildren(svgEl)
           setRendered(true)
         }
       } catch (e) {
