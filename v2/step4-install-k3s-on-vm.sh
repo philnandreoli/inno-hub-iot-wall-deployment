@@ -246,7 +246,6 @@ export KUBECONFIG=~/.kube/config
 
 # Switch to k3s context
 kubectl config use-context default
-sudo chmod 644 /etc/rancher/k3s/k3s.yaml
 
 # Verify k3s is running
 echo -e "${YELLOW}Verifying k3s installation...${RESET}"
