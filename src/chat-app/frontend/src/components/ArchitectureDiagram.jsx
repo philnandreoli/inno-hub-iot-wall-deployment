@@ -19,27 +19,38 @@ const DIAGRAM_DEFINITION = `
   }
 }}%%
 flowchart TB
-    User["<b>USER</b><br/>Web Browser"]
+    User["\`**USER**
+Web Browser\`"]
 
     subgraph cloud ["AZURE CLOUD"]
         direction LR
-        Entra["<b>ENTRA ID</b><br/>OAuth 2.0 + OIDC"]
-        Frontend["<b>REACT + NGINX</b><br/>Vite SPA"]
-        Backend["<b>FASTAPI</b><br/>Python Backend"]
-        EventGrid["<b>EVENT GRID</b><br/>MQTT Broker"]
-        Fabric["<b>FABRIC</b><br/>Eventhouse KQL"]
-        AppInsights["<b>APP INSIGHTS</b><br/>Telemetry"]
+        Entra["\`**ENTRA ID**
+OAuth 2.0 + OIDC\`"]
+        Frontend["\`**REACT + NGINX**
+Vite SPA\`"]
+        Backend["\`**FASTAPI**
+Python Backend\`"]
+        EventGrid["\`**EVENT GRID**
+MQTT Broker\`"]
+        Fabric["\`**FABRIC**
+Eventhouse KQL\`"]
+        AppInsights["\`**APP INSIGHTS**
+Telemetry\`"]
     end
 
     subgraph edge ["EDGE SITE // ARC-ENABLED K3S"]
-        AIO["<b>AZURE IOT OPERATIONS</b><br/>Data Flow + MQTT Broker"]
+        AIO["\`**AZURE IOT OPERATIONS**
+Data Flow + MQTT Broker\`"]
     end
 
     subgraph ot ["OT NETWORK // INDUSTRIAL"]
         direction LR
-        Beckhoff["<b>BECKHOFF PLC</b><br/>Controller"]
-        Leuze["<b>LEUZE</b><br/>Sensor"]
-        Actuators["<b>ACTUATORS</b><br/>Lamp + Fan"]
+        Beckhoff["\`**BECKHOFF PLC**
+Controller\`"]
+        Leuze["\`**LEUZE**
+Sensor\`"]
+        Actuators["\`**ACTUATORS**
+Lamp + Fan\`"]
     end
 
     User == "authenticate" ==> Entra
@@ -98,7 +109,7 @@ export function ArchitectureDiagram({ onBack }) {
     mermaid.initialize({
       startOnLoad: false,
       theme: 'dark',
-      securityLevel: 'loose',
+      securityLevel: 'strict',
       fontFamily: 'Rajdhani, sans-serif',
     })
 
@@ -107,15 +118,15 @@ export function ArchitectureDiagram({ onBack }) {
         const id = 'arch-diagram-' + Date.now()
         const { svg } = await mermaid.render(id, DIAGRAM_DEFINITION)
         if (!cancelled && containerRef.current) {
-          containerRef.current.innerHTML = svg
+          const parser = new DOMParser()
+          const svgDoc = parser.parseFromString(svg, 'image/svg+xml')
+          const svgEl = svgDoc.documentElement
           // Make SVG responsive
-          const svgEl = containerRef.current.querySelector('svg')
-          if (svgEl) {
-            svgEl.removeAttribute('height')
-            svgEl.style.width = '100%'
-            svgEl.style.maxWidth = '1200px'
-            svgEl.style.height = 'auto'
-          }
+          svgEl.removeAttribute('height')
+          svgEl.style.width = '100%'
+          svgEl.style.maxWidth = '1200px'
+          svgEl.style.height = 'auto'
+          containerRef.current.replaceChildren(svgEl)
           setRendered(true)
         }
       } catch (e) {
