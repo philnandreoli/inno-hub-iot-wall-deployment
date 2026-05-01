@@ -11,6 +11,11 @@ import {
 
 const BLINK_PATTERNS = [0, 1, 2, 3, 4, 5, 6]
 
+function getAzureStatusClassName(status) {
+  const slug = (status ?? 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+  return `azure-status-badge azure-status-${slug}`
+}
+
 function getLampState(record) {
   if (!record) return null
   // Try actual API field names first, then fallbacks
@@ -253,7 +258,7 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
             <span className="spinner" style={{ width: 10, height: 10, borderWidth: 2 }} />
           </span>
         ) : (
-          <span className={`azure-status-badge azure-status-${(azureStatus ?? 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`}>
+          <span className={getAzureStatusClassName(azureStatus)}>
             {azureStatus ?? 'Unknown'}
           </span>
         )}

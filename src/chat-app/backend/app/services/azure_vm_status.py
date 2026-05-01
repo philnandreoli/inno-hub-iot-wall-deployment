@@ -26,7 +26,7 @@ class AzureVmStatusReader:
     def __init__(self, settings: Settings) -> None:
         self.subscription_id = settings.azure_subscription_id
         self.resource_group = settings.azure_resource_group
-        self._credential = DefaultAzureCredential(exclude_environment_credential=True)
+        self._credential = DefaultAzureCredential()
         self._client: ComputeManagementClient | None = None
 
     def _is_configured(self) -> bool:
