@@ -63,17 +63,25 @@ class AzureVmStatusReader:
                 "identifier": vm_identifier,
             }
 
-        client = self._get_client()
-        vm = client.virtual_machines.get(
-            self.resource_group,
-            vm_identifier,
-            expand="instanceView",
-        )
-        statuses = vm.instance_view.statuses if vm.instance_view else []
-        power_state = next(
-            (s.display_status for s in statuses if s.code and s.code.startswith("PowerState/")),
-            "Unknown",
-        )
+        try:
+            client = self._get_client()
+            vm = client.virtual_machines.get(
+                self.resource_group,
+                vm_identifier,
+                expand="instanceView",
+            )
+            statuses = vm.instance_view.statuses if vm.instance_view else []
+            power_state = next(
+                (s.display_status for s in statuses if s.code and s.code.startswith("PowerState/")),
+                "Unknown",
+            )
+        except Exception:
+            logger.exception(
+                "Failed to retrieve Azure VM status for device '%s' (VM identifier: '%s')",
+                device_name,
+                vm_identifier,
+            )
+            raise
 
         return {
             "deviceName": device_name,

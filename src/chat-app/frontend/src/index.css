@@ -1525,6 +1525,12 @@ body::after {
   flex-shrink: 0;
 }
 
+.spinner-sm {
+  width: 10px;
+  height: 10px;
+  border-width: 2px;
+}
+
 /* ──────────────── TOAST ──────────────── */
 .toast-container {
   position: fixed;

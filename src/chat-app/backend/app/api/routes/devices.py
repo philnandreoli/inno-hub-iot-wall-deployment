@@ -59,14 +59,14 @@ def get_device_azure_status(
     # Fetch the device status record to extract a VM identifier.
     # If the device is not found or the query fails, fall back to an empty record so
     # the Azure reader can still return "Not Implemented" gracefully.
-    record: dict[str, Any] = {}
     try:
         status = reader.get_device_status(device_name=validated_device_name)
-        record = status.get("record") or {}
+        record: dict[str, Any] = status.get("record") or {}
     except LookupError:
-        pass
+        record = {}
     except Exception:  # noqa: BLE001
         logger.exception("Failed to fetch status record for azure-status check on %s", validated_device_name)
+        record = {}
 
     try:
         return azure_vm_reader.get_vm_status(device_name=validated_device_name, record=record)

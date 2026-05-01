@@ -255,7 +255,7 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
       <div className="azure-status-row">
         {azureStatusLoading ? (
           <span className="azure-status-badge azure-status-loading">
-            <span className="spinner" style={{ width: 10, height: 10, borderWidth: 2 }} />
+            <span className="spinner spinner-sm" />
           </span>
         ) : (
           <span className={getAzureStatusClassName(azureStatus)}>
