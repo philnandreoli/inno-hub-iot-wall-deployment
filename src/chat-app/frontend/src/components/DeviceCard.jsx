@@ -12,6 +12,8 @@ import {
 const BLINK_PATTERNS = [0, 1, 2, 3, 4, 5, 6]
 
 function getAzureStatusClassName(status) {
+  // Converts display_status (e.g. "VM running", "Stopped (deallocated)") to a CSS-safe
+  // modifier class (e.g. "azure-status-vm-running", "azure-status-stopped-deallocated").
   const slug = (status ?? 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
   return `azure-status-badge azure-status-${slug}`
 }

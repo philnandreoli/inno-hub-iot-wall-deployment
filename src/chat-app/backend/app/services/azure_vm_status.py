@@ -1,6 +1,7 @@
 import logging
 from typing import Any
 
+from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import DefaultAzureCredential
 from azure.mgmt.compute import ComputeManagementClient
 
@@ -75,6 +76,18 @@ class AzureVmStatusReader:
                 (s.display_status for s in statuses if s.code and s.code.startswith("PowerState/")),
                 "Unknown",
             )
+        except ResourceNotFoundError:
+            logger.warning(
+                "Azure VM '%s' not found in resource group '%s' for device '%s'",
+                vm_identifier,
+                self.resource_group,
+                device_name,
+            )
+            return {
+                "deviceName": device_name,
+                "azureStatus": "VM Not Found",
+                "identifier": vm_identifier,
+            }
         except Exception:
             logger.exception(
                 "Failed to retrieve Azure VM status for device '%s' (VM identifier: '%s')",

@@ -40,6 +40,10 @@ class FakeStatusReader:
         record: dict[str, Any] = {"lamp": True}
         if device_name == "device-with-vm-k3s":
             record["vmName"] = "my-azure-vm"
+        elif device_name == "device-stopped-vm-k3s":
+            record["vmName"] = "stopped-vm"
+        elif device_name == "device-notfound-vm-k3s":
+            record["vmName"] = "notfound-vm"
 
         return {
             "deviceName": device_name,
@@ -91,7 +95,20 @@ class FakeStatusReader:
 
 
 class FakeAzureVmStatusReader:
-    """Fake AzureVmStatusReader that returns a fixed running status when an identifier is present."""
+    """Fake AzureVmStatusReader for testing.
+
+    Returns different statuses depending on the vmName value in the record:
+    - "my-azure-vm"  → "VM running"
+    - "stopped-vm"   → "VM stopped"
+    - "notfound-vm"  → "VM Not Found"
+    - no identifier  → "Not Implemented"
+    """
+
+    _STATUS_BY_VM: dict[str, str] = {
+        "my-azure-vm": "VM running",
+        "stopped-vm": "VM stopped",
+        "notfound-vm": "VM Not Found",
+    }
 
     def get_vm_status(self, device_name: str, record: dict[str, Any]) -> dict[str, Any]:
         vm_identifier = AzureVmStatusReader.extract_vm_identifier(record)
@@ -101,9 +118,10 @@ class FakeAzureVmStatusReader:
                 "azureStatus": "Not Implemented",
                 "identifier": None,
             }
+        status = self._STATUS_BY_VM.get(vm_identifier, "VM running")
         return {
             "deviceName": device_name,
-            "azureStatus": "VM running",
+            "azureStatus": status,
             "identifier": vm_identifier,
         }
 
@@ -371,3 +389,25 @@ def test_azure_vm_status_not_implemented_when_unconfigured() -> None:
 
     assert result["azureStatus"] == "Not Implemented"
     assert result["identifier"] == "some-vm"
+
+
+def test_azure_status_returns_stopped_for_stopped_vm() -> None:
+    client, _ = build_test_client()
+
+    response = client.get("/api/devices/device-stopped-vm-k3s/azure-status")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["azureStatus"] == "VM stopped"
+    assert body["identifier"] == "stopped-vm"
+
+
+def test_azure_status_returns_vm_not_found_when_vm_absent_in_azure() -> None:
+    client, _ = build_test_client()
+
+    response = client.get("/api/devices/device-notfound-vm-k3s/azure-status")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["azureStatus"] == "VM Not Found"
+    assert body["identifier"] == "notfound-vm"
