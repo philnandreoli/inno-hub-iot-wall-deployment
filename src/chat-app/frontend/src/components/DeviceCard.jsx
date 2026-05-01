@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   sendLampOn,
   sendLampOff,
@@ -6,6 +6,7 @@ import {
   sendFanOff,
   sendBlinkPattern,
   fetchDeviceStatus,
+  fetchAzureStatus,
 } from '../api.js'
 
 const BLINK_PATTERNS = [0, 1, 2, 3, 4, 5, 6]
@@ -127,9 +128,29 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
   const [lampBusy, setLampBusy] = useState(null)
   const [fanBusy, setFanBusy] = useState(null)
   const [blinkBusy, setBlinkBusy] = useState(false)
+  const [azureStatus, setAzureStatus] = useState(null)
+  const [azureStatusLoading, setAzureStatusLoading] = useState(true)
 
   const deviceName = getDeviceName(device)
   const hubName = device.hubName ?? device.HubName ?? device.hub ?? device.Hub ?? null
+
+  // Fetch Azure VM status on mount and whenever the device name changes
+  useEffect(() => {
+    if (!deviceName) return
+    let cancelled = false
+    setAzureStatusLoading(true)
+    fetchAzureStatus(deviceName)
+      .then(data => {
+        if (!cancelled) setAzureStatus(data.azureStatus ?? 'Unknown')
+      })
+      .catch(() => {
+        if (!cancelled) setAzureStatus('Unknown')
+      })
+      .finally(() => {
+        if (!cancelled) setAzureStatusLoading(false)
+      })
+    return () => { cancelled = true }
+  }, [deviceName])
 
   const lampOn = getLampState(statusRecord)
   const fanOn = getFanState(statusRecord)
@@ -219,6 +240,24 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
           </div>
         </div>
       )}
+
+      {/* ── Azure VM Status ── */}
+      <hr className="card-section-divider" />
+      <div className="controller-section-label azure">
+        <span className="section-icon" aria-hidden="true">☁</span>
+        <span className="section-text">Azure VM Status</span>
+      </div>
+      <div className="azure-status-row">
+        {azureStatusLoading ? (
+          <span className="azure-status-badge azure-status-loading">
+            <span className="spinner" style={{ width: 10, height: 10, borderWidth: 2 }} />
+          </span>
+        ) : (
+          <span className={`azure-status-badge azure-status-${(azureStatus ?? 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`}>
+            {azureStatus ?? 'Unknown'}
+          </span>
+        )}
+      </div>
 
       {/* ── Beckhoff Controller ── */}
       <div className="controller-section-label beckhoff">

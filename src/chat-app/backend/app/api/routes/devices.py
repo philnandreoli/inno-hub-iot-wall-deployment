@@ -4,7 +4,8 @@ from typing import Any, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
-from app.dependencies import get_publisher, get_status_reader, verify_token
+from app.dependencies import get_azure_vm_status_reader, get_publisher, get_status_reader, verify_token
+from app.services.azure_vm_status import AzureVmStatusReader
 from app.services.mqtt_publisher import MqttPublisher
 from app.services.status_reader import EventhouseStatusReader
 from app.validators import validate_date_range, validate_device_name, validate_timespan
@@ -16,6 +17,7 @@ router = APIRouter(prefix="/api/devices", tags=["devices"])
 ClaimsDep = Annotated[dict[str, Any], Depends(verify_token)]
 PublisherDep = Annotated[MqttPublisher, Depends(get_publisher)]
 StatusReaderDep = Annotated[EventhouseStatusReader, Depends(get_status_reader)]
+AzureVmStatusReaderDep = Annotated[AzureVmStatusReader, Depends(get_azure_vm_status_reader)]
 
 
 def _publish_device_command(
@@ -43,6 +45,34 @@ def _publish_device_command(
         "qos": publisher.qos,
         "correlationData": correlation_id,
     }
+
+
+@router.get("/{device_name}/azure-status")
+def get_device_azure_status(
+    device_name: str,
+    reader: StatusReaderDep,
+    azure_vm_reader: AzureVmStatusReaderDep,
+    _claims: ClaimsDep,
+) -> dict[str, Any]:
+    validated_device_name = validate_device_name(device_name)
+
+    # Fetch the device status record to extract a VM identifier.
+    # If the device is not found or the query fails, fall back to an empty record so
+    # the Azure reader can still return "Not Implemented" gracefully.
+    record: dict[str, Any] = {}
+    try:
+        status = reader.get_device_status(device_name=validated_device_name)
+        record = status.get("record") or {}
+    except LookupError:
+        pass
+    except Exception:  # noqa: BLE001
+        logger.exception("Failed to fetch status record for azure-status check on %s", validated_device_name)
+
+    try:
+        return azure_vm_reader.get_vm_status(device_name=validated_device_name, record=record)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Failed to fetch Azure VM status for %s", validated_device_name)
+        raise HTTPException(status_code=502, detail="Failed to fetch Azure VM status") from exc
 
 
 @router.get("/{device_name}/commands/status")

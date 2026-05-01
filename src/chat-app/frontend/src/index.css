@@ -3343,3 +3343,89 @@ body::after {
   letter-spacing: 0.04em;
   color: var(--cyan);
 }
+
+/* ──────────────── AZURE VM STATUS ──────────────── */
+.controller-section-label.azure {
+  border-left: 3px solid #0078d4;
+  background: rgba(0, 120, 212, 0.08);
+}
+
+.controller-section-label.azure .section-text {
+  color: #0078d4;
+}
+
+[data-theme='light'] .controller-section-label.azure {
+  border-left-color: #0063b1;
+  background: rgba(0, 99, 177, 0.07);
+}
+
+[data-theme='light'] .controller-section-label.azure .section-text {
+  color: #0063b1;
+}
+
+.azure-status-row {
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.azure-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border-color: var(--border-dim);
+}
+
+/* Running */
+.azure-status-badge.azure-status-vm-running,
+.azure-status-badge.azure-status-running {
+  color: var(--green);
+  background: var(--green-glow);
+  border-color: rgba(0, 230, 118, 0.3);
+}
+
+/* Stopped / deallocated */
+.azure-status-badge.azure-status-vm-stopped,
+.azure-status-badge.azure-status-stopped,
+.azure-status-badge.azure-status-vm-deallocated,
+.azure-status-badge.azure-status-deallocated,
+.azure-status-badge.azure-status-stopped-deallocated {
+  color: var(--red);
+  background: var(--red-glow);
+  border-color: rgba(255, 23, 68, 0.3);
+}
+
+/* Starting / updating / provisioning */
+.azure-status-badge.azure-status-starting,
+.azure-status-badge.azure-status-vm-starting,
+.azure-status-badge.azure-status-updating,
+.azure-status-badge.azure-status-provisioning {
+  color: var(--amber);
+  background: var(--amber-glow);
+  border-color: rgba(255, 171, 0, 0.3);
+}
+
+/* Not Implemented */
+.azure-status-badge.azure-status-not-implemented {
+  color: var(--text-muted);
+  background: transparent;
+  border-style: dashed;
+  opacity: 0.7;
+}
+
+/* Loading spinner inside badge */
+.azure-status-badge.azure-status-loading {
+  min-width: 60px;
+  justify-content: center;
+}

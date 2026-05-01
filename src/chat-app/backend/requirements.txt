@@ -4,6 +4,7 @@ paho-mqtt==2.1.0
 python-dotenv==1.0.1
 azure-identity==1.19.0
 azure-kusto-data==4.5.1
+azure-mgmt-compute==33.0.0
 PyJWT==2.9.0
 cryptography==44.0.0
 azure-monitor-opentelemetry==1.6.4

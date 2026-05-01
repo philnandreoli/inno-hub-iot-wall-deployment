@@ -109,3 +109,9 @@ export async function sendBlinkPattern(deviceName, patternNumber) {
   if (!res.ok) throw new Error(`Blink pattern failed: ${res.status}`)
   return res.json()
 }
+
+export async function fetchAzureStatus(deviceName) {
+  const res = await authFetch(`${BASE}/api/devices/${encodeURIComponent(deviceName)}/azure-status`)
+  if (!res.ok) throw new Error(`Azure status fetch failed: ${res.status}`)
+  return res.json()
+}
