@@ -4,7 +4,8 @@ from typing import Any, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
-from app.dependencies import get_publisher, get_status_reader, verify_token
+from app.dependencies import get_arc_status_reader, get_publisher, get_status_reader, verify_token
+from app.services.arc_status_reader import ArcStatusReader
 from app.services.mqtt_publisher import MqttPublisher
 from app.services.status_reader import EventhouseStatusReader
 from app.validators import validate_date_range, validate_device_name, validate_timespan
@@ -16,6 +17,7 @@ router = APIRouter(prefix="/api/devices", tags=["devices"])
 ClaimsDep = Annotated[dict[str, Any], Depends(verify_token)]
 PublisherDep = Annotated[MqttPublisher, Depends(get_publisher)]
 StatusReaderDep = Annotated[EventhouseStatusReader, Depends(get_status_reader)]
+ArcStatusReaderDep = Annotated[ArcStatusReader, Depends(get_arc_status_reader)]
 
 
 def _publish_device_command(
@@ -123,6 +125,42 @@ def get_all_devices_status(
     except Exception as exc:  # noqa: BLE001
         logger.exception("Failed to fetch all devices status")
         raise HTTPException(status_code=502, detail="Failed to fetch all devices status") from exc
+
+
+@router.get("/{device_name}/arc-status")
+def get_device_arc_status(
+    device_name: str,
+    reader: StatusReaderDep,
+    arc_reader: ArcStatusReaderDep,
+    _claims: ClaimsDep,
+) -> dict[str, Any]:
+    validated_device_name = validate_device_name(device_name)
+
+    try:
+        device_data = reader.get_device_status(validated_device_name)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Failed to fetch device status for %s", validated_device_name)
+        raise HTTPException(status_code=502, detail="Failed to fetch device status") from exc
+
+    record = device_data.get("record", {})
+    hub = record.get("hub")
+    country = record.get("country")
+
+    if not hub or not country:
+        raise HTTPException(
+            status_code=502,
+            detail="Missing hub or country in device record",
+        )
+
+    try:
+        return arc_reader.get_arc_status(validated_device_name, hub, country)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Failed to fetch Arc status for %s", validated_device_name)
+        raise HTTPException(status_code=502, detail="Failed to fetch Arc status") from exc
 
 
 @router.post("/{device_name}/commands/lamp/on")

@@ -35,6 +35,7 @@ def _make_settings() -> Settings:
         fabric_eventhouse_query_retries=1,
         applicationinsights_connection_string="",
         enable_docs=False,
+        azure_subscription_id="",
     )
 
 
