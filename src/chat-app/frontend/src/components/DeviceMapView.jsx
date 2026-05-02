@@ -101,23 +101,43 @@ function buildSvgIcon(color, glowColor) {
   })
 }
 
-const ICON_ONLINE  = buildSvgIcon('#00e676', '#00e676')
-const ICON_WARN    = buildSvgIcon('#ffab00', '#ffab00')
-const ICON_COLD    = buildSvgIcon('#00b8cc', '#00e5ff')
-const ICON_HOT     = buildSvgIcon('#ff1744', '#ff1744')
-const ICON_OFFLINE = buildSvgIcon('#8d6e63', '#8d6e63')
-const ICON_PARTIAL = buildSvgIcon('#ffab00', '#ffab00')
+const ICON_CONNECTED       = buildSvgIcon('#00e676', '#00e676')
+const ICON_DEGRADED        = buildSvgIcon('#ffab00', '#ffab00')
+const ICON_OFFLINE         = buildSvgIcon('#e53935', '#e53935')
+const ICON_NOT_IMPLEMENTED = buildSvgIcon('#9e9e9e', '#9e9e9e')
 
-function pickIcon(device, statusRecord) {
-  const status = getConnectionStatus(statusRecord)
+/**
+ * Derive Azure status matching DeviceCard logic:
+ * 'connected' | 'partial' | 'offline' | 'not-implemented'
+ */
+function deriveAzureStatus(arcData, messagesLast24h, luezeMessagesLast24h) {
+  if (!arcData || arcData.error) return 'not-implemented'
+
+  const hostStatus = arcData.host?.status?.toLowerCase() ?? ''
+  const vmStatus = arcData.vm?.status?.toLowerCase() ?? ''
+  const k8sStatus = arcData.k8sCluster?.status?.toLowerCase() ?? ''
+
+  const allConnected = hostStatus === 'connected' && vmStatus === 'connected' && k8sStatus === 'connected'
+  const allDisconnected = hostStatus === 'disconnected' && vmStatus === 'disconnected' && k8sStatus === 'disconnected'
+
+  if (allConnected && messagesLast24h > 0 && luezeMessagesLast24h > 0) return 'connected'
+  if (allDisconnected) return 'offline'
+  return 'partial'
+}
+
+function pickIcon(device, statusRecord, arcData) {
+  const name = getDeviceName(device)
+  if (!name || name === 'Unknown' || !name.includes('-')) return ICON_NOT_IMPLEMENTED
+  if (!arcData || arcData.error) return ICON_NOT_IMPLEMENTED
+
+  const msgs = getMessagesLast24h(statusRecord)
+  const luezeMsgs = getLuezeMessagesLast24h(statusRecord)
+  const status = deriveAzureStatus(arcData, msgs, luezeMsgs)
+
+  if (status === 'connected') return ICON_CONNECTED
   if (status === 'offline') return ICON_OFFLINE
-  if (status === 'partial') return ICON_PARTIAL
-  const temp = getTemperature(statusRecord ?? device)
-  if (temp !== null) {
-    if (temp > 107) return ICON_HOT
-    if (temp > 92) return ICON_WARN
-  }
-  return ICON_ONLINE
+  if (status === 'partial') return ICON_DEGRADED
+  return ICON_NOT_IMPLEMENTED
 }
 
 // ── Auto-fit bounds ──────────────────────────────────────────────
@@ -143,7 +163,7 @@ function FitBounds({ positions }) {
 const TILE_DARK  = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
 const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
 
-export function DeviceMapView({ devices, statusMap, onSelectDevice, theme }) {
+export function DeviceMapView({ devices, statusMap, arcStatusMap, onSelectDevice, theme }) {
   const isDark = theme === 'dark'
   // Group devices by hub, using real lat/lng from data
   const sites = useMemo(() => {
@@ -196,12 +216,16 @@ export function DeviceMapView({ devices, statusMap, onSelectDevice, theme }) {
             const name = getDeviceName(firstDevice)
             return statusMap[name] ?? statusMap[name?.toLowerCase()] ?? firstDevice
           })()
+          const firstArc = (() => {
+            const name = getDeviceName(firstDevice)
+            return arcStatusMap?.[name] ?? arcStatusMap?.[name?.toLowerCase()] ?? null
+          })()
 
           return (
             <Marker
               key={`${site.lat}-${site.lng}`}
               position={[site.lat, site.lng]}
-              icon={pickIcon(firstDevice, firstStatus)}
+              icon={pickIcon(firstDevice, firstStatus, firstArc)}
             >
               <Popup className="map-popup">
                 <div className="map-popup-inner">

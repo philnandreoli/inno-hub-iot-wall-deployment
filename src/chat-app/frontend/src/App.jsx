@@ -178,25 +178,9 @@ export default function App() {
   }
 
   // Derived stats
-  const totalDevices = devices.length
-  const hubs = new Set(
+  const totalSites = new Set(
     devices.map(d => d.hubName ?? d.HubName ?? d.hub ?? d.Hub ?? ''),
   ).size
-  const lampsOn = devices.filter(d => {
-    const name = getDeviceName(d)
-    const r = statusMap[name] ?? statusMap[name.toLowerCase()]
-    const v = r?.isLampOn ?? r?.lamp ?? r?.Lamp
-    return v === true || v === 'true' || v === 1 || v === '1'
-  }).length
-  const fansOn = devices.filter(d => {
-    const name = getDeviceName(d)
-    const r = statusMap[name] ?? statusMap[name.toLowerCase()]
-    const v = r?.fanOnOrOff ?? r?.fanOnOff ?? r?.fan ?? r?.Fan ?? r?.fanSpeed ?? r?.FanSpeed
-    if (v === undefined || v === null) return false
-    if (typeof v === 'boolean') return v
-    if (typeof v === 'number') return v > 0
-    return parseFloat(v) > 0
-  }).length
 
   // Helper: get connection status for a device ('online' | 'partial' | 'offline')
   const getDeviceConnectionStatus = (d) => {
@@ -212,8 +196,6 @@ export default function App() {
     return 'offline'
   }
 
-  const offlineCount = devices.filter(d => getDeviceConnectionStatus(d) === 'offline').length
-
   // Helper: is a device "Not Implemented" (no valid instance name for arc-status)
   const isDeviceNotImplemented = (d) => {
     const name = getDeviceName(d)
@@ -222,6 +204,10 @@ export default function App() {
     if (!r) return true
     return false
   }
+
+  const notImplementedCount = devices.filter(d => isDeviceNotImplemented(d)).length
+  const onlineCount = devices.filter(d => !isDeviceNotImplemented(d) && getDeviceConnectionStatus(d) === 'online').length
+  const degradedCount = devices.filter(d => !isDeviceNotImplemented(d) && getDeviceConnectionStatus(d) !== 'online').length
 
   // Filtered device list (hide "Not Implemented" devices when toggle is on)
   const filteredDevices = hideOffline ? devices.filter(d => !isDeviceNotImplemented(d)) : devices
@@ -390,36 +376,26 @@ export default function App() {
             </div>
 
             {/* Stats bar */}
-            {!error && totalDevices > 0 && (
+            {!error && devices.length > 0 && (
               <div className="stats-bar">
                 <div className="stat-item">
-                  <span className="stat-label">Total Devices</span>
-                  <span className="stat-value cyan">{totalDevices}</span>
+                  <span className="stat-label">Total Sites</span>
+                  <span className="stat-value cyan">{totalSites}</span>
                 </div>
                 <div className="stat-divider" />
                 <div className="stat-item">
-                  <span className="stat-label">Hubs</span>
-                  <span className="stat-value cyan">{hubs}</span>
+                  <span className="stat-label">Devices Online</span>
+                  <span className="stat-value green">{onlineCount}</span>
                 </div>
                 <div className="stat-divider" />
                 <div className="stat-item">
-                  <span className="stat-label">Lamps On</span>
-                  <span className="stat-value green">{lampsOn}</span>
+                  <span className="stat-label">Degraded</span>
+                  <span className="stat-value amber">{degradedCount}</span>
                 </div>
                 <div className="stat-divider" />
                 <div className="stat-item">
-                  <span className="stat-label">Fans Active</span>
-                  <span className="stat-value amber">{fansOn}</span>
-                </div>
-                <div className="stat-divider" />
-                <div className="stat-item">
-                  <span className="stat-label">Lamps Off</span>
-                  <span className="stat-value red">{totalDevices - lampsOn}</span>
-                </div>
-                <div className="stat-divider" />
-                <div className="stat-item">
-                  <span className="stat-label">Offline</span>
-                  <span className="stat-value" style={{ color: '#8d6e63' }}>{offlineCount}</span>
+                  <span className="stat-label">Not Implemented</span>
+                  <span className="stat-value" style={{ color: '#9e9e9e' }}>{notImplementedCount}</span>
                 </div>
               </div>
             )}
@@ -471,6 +447,7 @@ export default function App() {
                 <DeviceMapView
                   devices={filteredDevices}
                   statusMap={statusMap}
+                  arcStatusMap={arcStatusMap}
                   onSelectDevice={setSelectedDevice}
                   theme={theme}
                 />
