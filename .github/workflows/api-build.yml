@@ -117,4 +117,5 @@ jobs:
               FABRIC_EVENTHOUSE_DATABASE=${{ vars.FABRIC_EVENTHOUSE_DATABASE }} \
               APPLICATIONINSIGHTS_CONNECTION_STRING=${{ secrets.VITE_APPINSIGHTS_CONNECTION_STRING }} \
               ENABLE_DOCS=${{ vars.ENABLE_DOCS }} \
+              AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }} \
             --image ${{ secrets.ACR_HOSTNAME }}/iot-wall-api:${{ github.sha }}
