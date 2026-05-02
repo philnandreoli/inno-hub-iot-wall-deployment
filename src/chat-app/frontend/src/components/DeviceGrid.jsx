@@ -30,6 +30,7 @@ const DEVICES_PER_PAGE = 6
 export function DeviceGrid({
   devicesByHub,
   statusMap,
+  arcStatusMap,
   onToast,
   onStatusUpdate,
   onSelectDevice,
@@ -89,7 +90,7 @@ export function DeviceGrid({
               key={deviceKey}
               className="device-card-trigger"
             >
-              <DeviceCard device={device} statusRecord={status} onToast={onToast} onStatusUpdate={onStatusUpdate} onSelectDevice={onSelectDevice} />
+              <DeviceCard device={device} statusRecord={status} arcStatusData={arcStatusMap?.[dName] ?? arcStatusMap?.[dName.toLowerCase()] ?? arcStatusMap?.[dName.toUpperCase()] ?? null} onToast={onToast} onStatusUpdate={onStatusUpdate} onSelectDevice={onSelectDevice} />
             </div>
           )
         })}

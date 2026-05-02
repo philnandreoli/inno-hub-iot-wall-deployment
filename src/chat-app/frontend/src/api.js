@@ -109,3 +109,9 @@ export async function sendBlinkPattern(deviceName, patternNumber) {
   if (!res.ok) throw new Error(`Blink pattern failed: ${res.status}`)
   return res.json()
 }
+
+export async function fetchDeviceArcStatus(deviceName) {
+  const res = await authFetch(`${BASE}/api/devices/${encodeURIComponent(deviceName)}/arc-status`)
+  if (!res.ok) throw new Error(`Arc status fetch failed: ${res.status}`)
+  return res.json()
+}

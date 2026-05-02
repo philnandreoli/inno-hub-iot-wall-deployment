@@ -1229,6 +1229,50 @@ body::after {
   animation: blink-led 1.5s infinite;
 }
 
+/* Azure Arc Status Badge */
+.azure-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 10px;
+  border: 1px solid;
+}
+
+.azure-status--connected {
+  color: var(--green);
+  border-color: rgba(0, 230, 118, 0.25);
+  background: rgba(0, 230, 118, 0.06);
+}
+
+.azure-status--offline {
+  color: var(--text-muted);
+  border-color: var(--border-dim);
+  background: transparent;
+}
+
+.azure-status--partial {
+  color: var(--amber);
+  border-color: rgba(255, 171, 0, 0.25);
+  background: rgba(255, 171, 0, 0.06);
+}
+
+.azure-status--not-implemented {
+  color: var(--text-muted);
+  border-color: var(--border-dim);
+  background: transparent;
+  opacity: 0.6;
+}
+
+.azure-status-icon {
+  font-size: 11px;
+}
+
 .card-header-right {
   display: flex;
   align-items: center;

@@ -6,6 +6,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 
 from app.config import Settings
 from app.security import TokenVerifier, bearer_scheme
+from app.services.arc_status_reader import ArcStatusReader
 from app.services.mqtt_publisher import MqttPublisher
 from app.services.status_reader import EventhouseStatusReader
 
@@ -23,6 +24,11 @@ def get_publisher() -> MqttPublisher:
 @lru_cache
 def get_status_reader() -> EventhouseStatusReader:
     return EventhouseStatusReader(settings=get_settings())
+
+
+@lru_cache
+def get_arc_status_reader() -> ArcStatusReader:
+    return ArcStatusReader(settings=get_settings())
 
 
 @lru_cache

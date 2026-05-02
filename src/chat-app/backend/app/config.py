@@ -20,6 +20,7 @@ class Settings:
     fabric_eventhouse_query_retries: int
     applicationinsights_connection_string: str
     enable_docs: bool
+    azure_subscription_id: str
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -44,4 +45,5 @@ class Settings:
                 "APPLICATIONINSIGHTS_CONNECTION_STRING", ""
             ).strip(),
             enable_docs=os.getenv("ENABLE_DOCS", "false").strip().lower() in ("true", "1", "yes"),
+            azure_subscription_id=os.getenv("AZURE_SUBSCRIPTION_ID", "").strip(),
         )
