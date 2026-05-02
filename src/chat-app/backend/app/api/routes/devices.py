@@ -127,6 +127,7 @@ def get_all_devices_status(
         raise HTTPException(status_code=502, detail="Failed to fetch all devices status") from exc
 
 
+
 @router.get("/{device_name}/arc-status")
 def get_device_arc_status(
     device_name: str,
@@ -136,22 +137,33 @@ def get_device_arc_status(
 ) -> dict[str, Any]:
     validated_device_name = validate_device_name(device_name)
 
+    hub: str | None = None
+    country: str | None = None
+
     try:
         device_data = reader.get_device_status(validated_device_name)
-    except LookupError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        record = device_data.get("record", {})
+        hub = record.get("hub") or record.get("Hub") or record.get("HUB")
+        country = record.get("country") or record.get("Country") or record.get("COUNTRY")
+    except LookupError:
+        logger.info("Device %s not in Eventhouse, deriving hub from name", validated_device_name)
     except Exception as exc:  # noqa: BLE001
         logger.exception("Failed to fetch device status for %s", validated_device_name)
-        raise HTTPException(status_code=502, detail="Failed to fetch device status") from exc
 
-    record = device_data.get("record", {})
-    hub = record.get("hub")
-    country = record.get("country")
+    # Fallback: derive hub from device name prefix (e.g. "dal-mtc2032-vm-k3s" → hub="dal")
+    if not hub:
+        dash_pos = validated_device_name.find("-")
+        if dash_pos > 0:
+            hub = validated_device_name[:dash_pos].upper()
 
-    if not hub or not country:
+    # Default country to US if not available
+    if not country:
+        country = "US"
+
+    if not hub:
         raise HTTPException(
             status_code=502,
-            detail="Missing hub or country in device record",
+            detail="Cannot determine hub from device record or name",
         )
 
     try:

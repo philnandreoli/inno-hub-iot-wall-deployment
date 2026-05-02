@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   sendLampOn,
   sendLampOff,
@@ -109,6 +109,27 @@ function getLuezeRecordCount(record) {
   return getLuezeMessagesLast24h(record)
 }
 
+/**
+ * Derive the Azure Arc status for a device given its arc-status API response
+ * and message counts.
+ *
+ * Returns: 'connected' | 'offline' | 'partial' | 'not-implemented'
+ */
+function deriveAzureStatus(arcData, messagesLast24h, luezeMessagesLast24h) {
+  if (!arcData) return 'not-implemented'
+
+  const hostStatus = arcData.host?.status?.toLowerCase() ?? ''
+  const vmStatus = arcData.vm?.status?.toLowerCase() ?? ''
+  const k8sStatus = arcData.k8sCluster?.status?.toLowerCase() ?? ''
+
+  const allConnected = hostStatus === 'connected' && vmStatus === 'connected' && k8sStatus === 'connected'
+  const allDisconnected = hostStatus === 'disconnected' && vmStatus === 'disconnected' && k8sStatus === 'disconnected'
+
+  if (allConnected && messagesLast24h > 0 && luezeMessagesLast24h > 0) return 'connected'
+  if (allDisconnected) return 'offline'
+  return 'partial'
+}
+
 function getDeviceName(device) {
   if (!device) return 'Unknown'
   let name = device.iotInstanceName ?? device.deviceName ?? device.DeviceName ?? device.device_name ?? device.Device ?? device.device ?? device.name ?? device.Name ?? null
@@ -123,10 +144,11 @@ function getDeviceName(device) {
   return name || ''
 }
 
-export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCommandComplete, onSelectDevice, embedded }) {
+export function DeviceCard({ device, statusRecord, arcStatusData, onToast, onStatusUpdate, onCommandComplete, onSelectDevice, embedded }) {
   const [lampBusy, setLampBusy] = useState(null)
   const [fanBusy, setFanBusy] = useState(null)
   const [blinkBusy, setBlinkBusy] = useState(false)
+  const [azureStatus, setAzureStatus] = useState('not-implemented')
 
   const deviceName = getDeviceName(device)
   const hubName = device.hubName ?? device.HubName ?? device.hub ?? device.Hub ?? null
@@ -145,6 +167,27 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
   const luezeBarcode = getLuezeBarcode(statusRecord)
   const luezeTimestamp = getLuezeTimestamp(statusRecord)
   const luezeRecordCount = getLuezeRecordCount(statusRecord)
+
+  // Derive azure status from batch arc data passed by parent
+  useEffect(() => {
+    if (!deviceName || deviceName === 'Unknown' || !deviceName.includes('-')) {
+      setAzureStatus('not-implemented')
+      return
+    }
+
+    if (!arcStatusData) {
+      setAzureStatus('not-implemented')
+      return
+    }
+
+    if (arcStatusData.error) {
+      setAzureStatus('not-implemented')
+    } else {
+      const msgs = getMessagesLast24h(statusRecord)
+      const luezeMsgs = getLuezeMessagesLast24h(statusRecord)
+      setAzureStatus(deriveAzureStatus(arcStatusData, msgs, luezeMsgs))
+    }
+  }, [deviceName, statusRecord, arcStatusData])
 
   function tempBadgeStyle(val) {
     if (!Number.isFinite(val)) return {}
@@ -212,9 +255,9 @@ export function DeviceCard({ device, statusRecord, onToast, onStatusUpdate, onCo
                 <span className="temp-value">{temperature.toFixed(1)}°F</span>
               </div>
             )}
-          <div className={`device-online-indicator ${connectionStatus}`}>
-            <span className="led" />
-            {connectionStatus === 'online' ? 'Online' : connectionStatus === 'partial' ? 'Partial' : 'Offline'}
+          <div className={`azure-status-badge azure-status--${azureStatus}`}>
+            <span className="azure-status-icon" aria-hidden="true">☁</span>
+            {azureStatus === 'connected' ? 'Connected' : azureStatus === 'offline' ? 'Offline' : azureStatus === 'partial' ? 'Degraded' : 'Not Implemented'}
           </div>
           </div>
         </div>

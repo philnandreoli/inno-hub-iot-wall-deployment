@@ -10,7 +10,7 @@ import { ArchitectureDiagram } from './components/ArchitectureDiagram.jsx'
 import { ToastContainer } from './components/ToastContainer.jsx'
 import { LoginPage } from './components/LoginPage.jsx'
 import { useToast } from './useToast.js'
-import { fetchAllDevicesStatus, setMsalInstance } from './api.js'
+import { fetchAllDevicesStatus, fetchDeviceArcStatus, setMsalInstance } from './api.js'
 import { setAuthenticatedUser, clearAuthenticatedUser, trackEvent, trackException } from './telemetry.js'
 
 const POLL_INTERVAL = 30_000 // 30 seconds
@@ -22,6 +22,7 @@ export default function App() {
 
   const [devices, setDevices] = useState([])       // from /api/devices/commands/status
   const [statusMap, setStatusMap] = useState({})   // deviceName → record
+  const [arcStatusMap, setArcStatusMap] = useState({}) // deviceName → arcData
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [lastUpdated, setLastUpdated] = useState(null)
@@ -100,7 +101,8 @@ export default function App() {
     setError(null)
     try {
       const statusPayload = await fetchAllDevicesStatus()
-      setDevices(statusPayload.devices ?? [])
+      const deviceList = statusPayload.devices ?? []
+      setDevices(deviceList)
       setStatusMap(buildStatusMap(statusPayload))
       setLastUpdated(new Date())
     } catch (e) {
@@ -111,12 +113,49 @@ export default function App() {
     }
   }, [buildStatusMap])
 
+  // Arc status fetched separately — ARM API is slow and status changes infrequently
+  // Updates map incrementally as each device resolves so cards don't all wait for the slowest device
+  const loadArcStatus = useCallback(async (deviceList) => {
+    const names = deviceList
+      .map(d => d.iotInstanceName ?? d.deviceName ?? d.DeviceName ?? d.device_name ?? d.Device ?? d.device ?? d.name ?? d.Name ?? null)
+      .filter(n => n && n.includes('-'))
+    if (names.length === 0) return
+    for (const name of names) {
+      fetchDeviceArcStatus(name)
+        .then(data => {
+          setArcStatusMap(prev => ({
+            ...prev,
+            [name]: data,
+            [name.toLowerCase()]: data,
+            [name.toUpperCase()]: data,
+          }))
+        })
+        .catch(() => {
+          // Mark failed devices so they don't stay as "not-implemented" indefinitely
+          setArcStatusMap(prev => ({
+            ...prev,
+            [name]: { error: true },
+            [name.toLowerCase()]: { error: true },
+            [name.toUpperCase()]: { error: true },
+          }))
+        })
+    }
+  }, [])
+
   // Initial load — wait until auth is ready so the token is available
   useEffect(() => {
     if (authReady) loadData()
   }, [authReady, loadData])
 
-  // Auto-refresh poll — only start after auth is ready
+  // Fetch arc status once when devices first load
+  const [arcStatusLoaded, setArcStatusLoaded] = useState(false)
+  useEffect(() => {
+    if (!authReady || devices.length === 0 || arcStatusLoaded) return
+    setArcStatusLoaded(true)
+    loadArcStatus(devices)
+  }, [authReady, devices, arcStatusLoaded, loadArcStatus])
+
+  // Auto-refresh poll for device status only (arc status is fetched once)
   useEffect(() => {
     if (!authReady) return
     const id = setInterval(loadData, POLL_INTERVAL)
@@ -175,11 +214,17 @@ export default function App() {
 
   const offlineCount = devices.filter(d => getDeviceConnectionStatus(d) === 'offline').length
 
-  // Helper: is a device offline?
-  const isDeviceOffline = (d) => getDeviceConnectionStatus(d) === 'offline'
+  // Helper: is a device "Not Implemented" (no valid instance name for arc-status)
+  const isDeviceNotImplemented = (d) => {
+    const name = getDeviceName(d)
+    if (!name || name === 'Unknown' || !name.includes('-')) return true
+    const r = statusMap[name] ?? statusMap[name.toLowerCase()]
+    if (!r) return true
+    return false
+  }
 
-  // Filtered device list (hide offline when toggle is on)
-  const filteredDevices = hideOffline ? devices.filter(d => !isDeviceOffline(d)) : devices
+  // Filtered device list (hide "Not Implemented" devices when toggle is on)
+  const filteredDevices = hideOffline ? devices.filter(d => !isDeviceNotImplemented(d)) : devices
 
   const connectionOk = !error && lastUpdated !== null
 
@@ -313,7 +358,7 @@ export default function App() {
                   type="button"
                   className={`filter-offline-btn${hideOffline ? ' active' : ''}`}
                   onClick={() => { setHideOffline(h => !h); setCurrentPage(1) }}
-                  title={hideOffline ? 'Show all devices' : 'Hide offline devices'}
+                  title={hideOffline ? 'Show all devices' : 'Hide not implemented devices'}
                 >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     {hideOffline ? (
@@ -335,7 +380,7 @@ export default function App() {
                       </>
                     )}
                   </svg>
-                  {hideOffline ? 'Offline hidden' : 'Hide offline'}
+                  {hideOffline ? 'Hidden' : 'Hide offline'}
                 </button>
                 <ViewToggle view={dashboardView} onToggle={setDashboardView} />
                 <span className="last-updated">
@@ -433,6 +478,7 @@ export default function App() {
                 <DeviceGrid
                   devicesByHub={filteredDevices}
                   statusMap={statusMap}
+                  arcStatusMap={arcStatusMap}
                   onToast={addToast}
                   onStatusUpdate={handleStatusUpdate}
                   onSelectDevice={setSelectedDevice}

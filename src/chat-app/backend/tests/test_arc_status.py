@@ -14,8 +14,8 @@ from app.services.arc_status_reader import ArcStatusReader
 
 class FakeStatusReaderForArc:
     def get_device_status(self, device_name: str) -> dict[str, Any]:
-        if device_name == "missing-vm-k3s":
-            raise LookupError("No status found for device 'missing-vm-k3s'")
+        if device_name == "missing-vm-k3s" or "notindb" in device_name:
+            raise LookupError(f"No status found for device '{device_name}'")
         if device_name == "kusto-error-vm-k3s":
             raise RuntimeError("Kusto boom")
         if device_name == "no-country-vm-k3s":
@@ -37,6 +37,8 @@ class FakeArcStatusReader:
             raise LookupError(f"ConnectedCluster '{device_name}' not found")
         if "arc-error" in device_name:
             raise RuntimeError("ARM failure")
+        if "missing" in device_name:
+            raise LookupError(f"HybridCompute machine '{device_name}' not found in resource group 'EXP-MFG-AIO-{hub.upper()}-{country.upper()}-RG'")
         return {
             "deviceName": device_name,
             "resourceGroup": f"EXP-MFG-AIO-{hub.upper()}-{country.upper()}-RG",
@@ -136,31 +138,40 @@ def test_arc_status_returns_connected_status() -> None:
     assert body["k8sCluster"]["status"] == "Connected"
 
 
-def test_arc_status_device_not_in_eventhouse_returns_404() -> None:
+def test_arc_status_device_not_in_eventhouse_falls_back_to_name() -> None:
+    """When device is not in Eventhouse, hub is derived from device name prefix."""
     client = build_arc_test_client()
 
-    response = client.get("/api/devices/missing-vm-k3s/arc-status")
+    response = client.get("/api/devices/atl-notindb-vm-k3s/arc-status")
 
-    assert response.status_code == 404
-    assert "missing-vm-k3s" in response.json()["detail"]
+    assert response.status_code == 200
+    body = response.json()
+    assert body["deviceName"] == "atl-notindb-vm-k3s"
+    assert body["resourceGroup"] == "EXP-MFG-AIO-ATL-US-RG"
 
 
-def test_arc_status_eventhouse_failure_returns_502() -> None:
+def test_arc_status_eventhouse_failure_falls_back_to_name() -> None:
+    """When Eventhouse raises RuntimeError, hub is derived from device name prefix."""
     client = build_arc_test_client()
 
     response = client.get("/api/devices/kusto-error-vm-k3s/arc-status")
 
-    assert response.status_code == 502
-    assert response.json()["detail"] == "Failed to fetch device status"
+    assert response.status_code == 200
+    body = response.json()
+    assert body["deviceName"] == "kusto-error-vm-k3s"
+    assert body["resourceGroup"] == "EXP-MFG-AIO-KUSTO-US-RG"
 
 
-def test_arc_status_missing_country_returns_502() -> None:
+def test_arc_status_missing_country_defaults_to_us() -> None:
+    """When record has hub but no country, country defaults to US."""
     client = build_arc_test_client()
 
     response = client.get("/api/devices/no-country-vm-k3s/arc-status")
 
-    assert response.status_code == 502
-    assert "hub or country" in response.json()["detail"]
+    assert response.status_code == 200
+    body = response.json()
+    assert body["deviceName"] == "no-country-vm-k3s"
+    assert body["resourceGroup"] == "EXP-MFG-AIO-ATL-US-RG"
 
 
 def test_arc_status_arm_not_found_returns_404() -> None:

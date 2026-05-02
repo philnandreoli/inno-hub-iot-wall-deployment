@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { DeviceCard } from './DeviceCard.jsx'
 import { CalendarPicker } from './CalendarPicker.jsx'
 import { TimePicker } from './TimePicker.jsx'
-import { fetchDeviceTelemetry } from '../api.js'
+import { fetchDeviceTelemetry, fetchDeviceArcStatus } from '../api.js'
 
 const OVERLAY_OPTIONS = [
   { key: 'fan', label: 'Fan State', onColor: '#2196f3', offColor: '#b71c1c' },
@@ -172,6 +172,36 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
   const [brushCurrent, setBrushCurrent] = useState(null)
   const [customStartDate, setCustomStartDate] = useState('')
   const [customEndDate, setCustomEndDate] = useState('')
+  const [azureStatus, setAzureStatus] = useState('not-implemented')
+
+  // Fetch Azure Arc status
+  useEffect(() => {
+    if (!deviceName || deviceName === 'Unknown' || !deviceName.includes('-')) {
+      setAzureStatus('not-implemented')
+      return
+    }
+    let cancelled = false
+    const fetchStatus = () => {
+      fetchDeviceArcStatus(deviceName)
+        .then(arcData => {
+          if (cancelled) return
+          const msgs = getMessagesLast24h(statusRecord)
+          const luezeMsgs = getLuezeMessagesLast24h(statusRecord)
+          const hostStatus = arcData.host?.status?.toLowerCase() ?? ''
+          const vmStatus = arcData.vm?.status?.toLowerCase() ?? ''
+          const k8sStatus = arcData.k8sCluster?.status?.toLowerCase() ?? ''
+          const allConnected = hostStatus === 'connected' && vmStatus === 'connected' && k8sStatus === 'connected'
+          const allDisconnected = hostStatus === 'disconnected' && vmStatus === 'disconnected' && k8sStatus === 'disconnected'
+          if (allConnected && msgs > 0 && luezeMsgs > 0) setAzureStatus('connected')
+          else if (allDisconnected) setAzureStatus('offline')
+          else setAzureStatus('partial')
+        })
+        .catch(() => { if (!cancelled) setAzureStatus('not-implemented') })
+    }
+    fetchStatus()
+    const interval = setInterval(fetchStatus, 25_000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [deviceName, statusRecord])
 
   const isCustomRange = windowKey === 'custom' && customStartDate !== '' && customEndDate !== ''
   const hasValidCustomRange = isCustomRange && new Date(customStartDate) < new Date(customEndDate)
@@ -539,9 +569,9 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
               <span>{getTemperature(statusRecord).toFixed(1)}°F</span>
             </div>
           )}
-          <div className={`detail-online-badge ${getConnectionStatus(statusRecord)}`}>
-            <span className="led" />
-            {getConnectionStatus(statusRecord) === 'online' ? 'Online' : getConnectionStatus(statusRecord) === 'partial' ? 'Partial' : 'Offline'}
+          <div className={`azure-status-badge azure-status--${azureStatus}`}>
+            <span className="azure-status-icon" aria-hidden="true">☁</span>
+            {azureStatus === 'connected' ? 'Connected' : azureStatus === 'offline' ? 'Offline' : azureStatus === 'partial' ? 'Degraded' : 'Not Implemented'}
           </div>
         </div>
       </div>
