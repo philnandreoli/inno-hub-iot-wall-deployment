@@ -3,6 +3,13 @@ import { DeviceCard } from './DeviceCard.jsx'
 import { CalendarPicker } from './CalendarPicker.jsx'
 import { TimePicker } from './TimePicker.jsx'
 import { fetchDeviceTelemetry, fetchDeviceArcStatus } from '../api.js'
+import {
+  getDeviceName,
+  getMessagesLast24h,
+  getLuezeMessagesLast24h,
+  getTemperature,
+  deriveAzureStatus,
+} from '../utils/deviceHelpers.js'
 
 const OVERLAY_OPTIONS = [
   { key: 'fan', label: 'Fan State', onColor: '#2196f3', offColor: '#b71c1c' },
@@ -96,65 +103,6 @@ function formatMetricValue(value, metricKey) {
   return value.toFixed(2)
 }
 
-function getDeviceName(device) {
-  if (!device) return ''
-  let name = device.iotInstanceName ?? device.deviceName ?? device.DeviceName ?? device.device_name ?? device.Device ?? device.device ?? device.name ?? device.Name ?? null
-  if (!name) {
-    for (const [key, val] of Object.entries(device)) {
-      if (typeof val === 'string' && val.length > 0 && !key.toLowerCase().includes('hub')) {
-        name = val
-        break
-      }
-    }
-  }
-  return name || ''
-}
-
-function getMessagesLast24h(record) {
-  if (!record) return 0
-  const val = record.messagesLast24h ?? record.MessagesLast24h ?? record.messages_last_24h ?? null
-  if (val === null || val === undefined) return 0
-  if (typeof val === 'number') return val
-  if (typeof val === 'string') {
-    const parsed = parseInt(val, 10)
-    return isNaN(parsed) ? 0 : parsed
-  }
-  return 0
-}
-
-function getLuezeMessagesLast24h(record) {
-  if (!record) return 0
-  const val = record.luezeMessagesLast24h ?? record.LuezeMessagesLast24h ?? record.lueze_messages_last_24h ?? null
-  if (val === null || val === undefined) return 0
-  if (typeof val === 'number') return val
-  if (typeof val === 'string') {
-    const parsed = parseInt(val, 10)
-    return isNaN(parsed) ? 0 : parsed
-  }
-  return 0
-}
-
-function getConnectionStatus(record) {
-  if (!record) return 'offline'
-  const beckhoff = getMessagesLast24h(record) > 0
-  const lueze = getLuezeMessagesLast24h(record) > 0
-  if (beckhoff && lueze) return 'online'
-  if (beckhoff || lueze) return 'partial'
-  return 'offline'
-}
-
-function getTemperature(record) {
-  if (!record) return null
-  const val = record.temperatureF ?? record.temperature ?? record.Temperature ?? record.temp ?? record.Temp ?? null
-  if (val === null || val === undefined) return null
-  if (typeof val === 'number') return val
-  if (typeof val === 'string') {
-    const parsed = parseFloat(val)
-    return isNaN(parsed) ? null : parsed
-  }
-  return null
-}
-
 export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStatusUpdate }) {
   const deviceName = getDeviceName(device)
   const hubName = device.hubName ?? device.HubName ?? device.hub ?? device.Hub ?? null
@@ -187,14 +135,7 @@ export function DeviceDetailPage({ device, statusRecord, onBack, onToast, onStat
           if (cancelled) return
           const msgs = getMessagesLast24h(statusRecord)
           const luezeMsgs = getLuezeMessagesLast24h(statusRecord)
-          const hostStatus = arcData.host?.status?.toLowerCase() ?? ''
-          const vmStatus = arcData.vm?.status?.toLowerCase() ?? ''
-          const k8sStatus = arcData.k8sCluster?.status?.toLowerCase() ?? ''
-          const allConnected = hostStatus === 'connected' && vmStatus === 'connected' && k8sStatus === 'connected'
-          const allDisconnected = hostStatus === 'disconnected' && vmStatus === 'disconnected' && k8sStatus === 'disconnected'
-          if (allConnected && msgs > 0 && luezeMsgs > 0) setAzureStatus('connected')
-          else if (allDisconnected) setAzureStatus('offline')
-          else setAzureStatus('partial')
+          setAzureStatus(deriveAzureStatus(arcData, msgs, luezeMsgs))
         })
         .catch(() => { if (!cancelled) setAzureStatus('not-implemented') })
     }

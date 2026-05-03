@@ -3,80 +3,17 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { getLatitude, getLongitude, getHub, getCityForHub } from '../siteLocations.js'
-
-// ── Helpers ──────────────────────────────────────────────────────
-
-function getDeviceName(device) {
-  if (!device) return 'Unknown'
-  return device.iotInstanceName ?? device.deviceName ?? device.DeviceName
-    ?? device.device_name ?? device.Device ?? device.device
-    ?? device.name ?? device.Name ?? 'Unknown'
-}
-
-function getLampState(record) {
-  const val = record?.isLampOn ?? record?.lamp ?? record?.Lamp ?? null
-  if (val === null) return null
-  if (typeof val === 'boolean') return val
-  return String(val).toLowerCase() === 'true' || val === 1 || val === '1'
-}
-
-function getFanState(record) {
-  const val = record?.fanOnOrOff ?? record?.fanOnOff ?? record?.fan ?? record?.Fan ?? null
-  if (val === null) return null
-  if (typeof val === 'boolean') return val
-  if (typeof val === 'number') return val > 0
-  return parseFloat(val) > 0 || String(val).toLowerCase() === 'true'
-}
-
-function getTemperature(record) {
-  const val = record?.temperatureF ?? record?.temperature ?? record?.Temperature ?? null
-  if (val === null) return null
-  const n = typeof val === 'number' ? val : parseFloat(val)
-  return Number.isFinite(n) ? n : null
-}
-
-function getMessagesLast24h(record) {
-  if (!record) return 0
-  const val = record.messagesLast24h ?? record.MessagesLast24h ?? record.messages_last_24h ?? null
-  if (val === null || val === undefined) return 0
-  if (typeof val === 'number') return val
-  if (typeof val === 'string') {
-    const parsed = parseInt(val, 10)
-    return isNaN(parsed) ? 0 : parsed
-  }
-  return 0
-}
-
-function getLuezeMessagesLast24h(record) {
-  if (!record) return 0
-  const val = record.luezeMessagesLast24h ?? record.LuezeMessagesLast24h ?? record.lueze_messages_last_24h ?? null
-  if (val === null || val === undefined) return 0
-  if (typeof val === 'number') return val
-  if (typeof val === 'string') {
-    const parsed = parseInt(val, 10)
-    return isNaN(parsed) ? 0 : parsed
-  }
-  return 0
-}
-
-function getConnectionStatus(record) {
-  if (!record) return 'offline'
-  const beckhoff = getMessagesLast24h(record) > 0
-  const lueze = getLuezeMessagesLast24h(record) > 0
-  if (beckhoff && lueze) return 'online'
-  if (beckhoff || lueze) return 'partial'
-  return 'offline'
-}
-
-function getLuezeBarcode(record) {
-  if (!record) return null
-  return record.luezelastReadBarcode ?? record.luezeLastReadBarcode ?? record.LuezeLastReadBarcode ?? null
-}
-
-function getLuezeIngestionTime(record) {
-  if (!record) return null
-  return record.luezeBarcodeIngestionTime ?? record.LuezeBarcodeIngestionTime ?? null
-}
+import {
+  getDeviceName,
+  getLampState,
+  getFanState,
+  getTemperature,
+  getMessagesLast24h,
+  getLuezeMessagesLast24h,
+  getLuezeBarcode,
+  getLuezeIngestionTime,
+  deriveAzureStatus,
+} from '../utils/deviceHelpers.js'
 
 // ── Custom marker icons ──────────────────────────────────────────
 
@@ -106,24 +43,6 @@ const ICON_DEGRADED        = buildSvgIcon('#ffab00', '#ffab00')
 const ICON_OFFLINE         = buildSvgIcon('#e53935', '#e53935')
 const ICON_NOT_IMPLEMENTED = buildSvgIcon('#9e9e9e', '#9e9e9e')
 
-/**
- * Derive Azure status matching DeviceCard logic:
- * 'connected' | 'partial' | 'offline' | 'not-implemented'
- */
-function deriveAzureStatus(arcData, messagesLast24h, luezeMessagesLast24h) {
-  if (!arcData || arcData.error) return 'not-implemented'
-
-  const hostStatus = arcData.host?.status?.toLowerCase() ?? ''
-  const vmStatus = arcData.vm?.status?.toLowerCase() ?? ''
-  const k8sStatus = arcData.k8sCluster?.status?.toLowerCase() ?? ''
-
-  const allConnected = hostStatus === 'connected' && vmStatus === 'connected' && k8sStatus === 'connected'
-  const allDisconnected = hostStatus === 'disconnected' && vmStatus === 'disconnected' && k8sStatus === 'disconnected'
-
-  if (allConnected && messagesLast24h > 0 && luezeMessagesLast24h > 0) return 'connected'
-  if (allDisconnected) return 'offline'
-  return 'partial'
-}
 
 function pickIcon(device, statusRecord, arcData) {
   const name = getDeviceName(device)
