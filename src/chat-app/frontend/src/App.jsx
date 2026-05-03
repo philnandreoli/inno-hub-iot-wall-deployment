@@ -12,6 +12,7 @@ import { LoginPage } from './components/LoginPage.jsx'
 import { useToast } from './useToast.js'
 import { fetchAllDevicesStatus, fetchDeviceArcStatus, setMsalInstance } from './api.js'
 import { setAuthenticatedUser, clearAuthenticatedUser, trackEvent, trackException } from './telemetry.js'
+import { getDeviceName, getConnectionStatus } from './utils/deviceHelpers.js'
 
 const POLL_INTERVAL = 30_000 // 30 seconds
 const THEME_STORAGE_KEY = 'iot-control-theme'
@@ -162,21 +163,6 @@ export default function App() {
     return () => clearInterval(id)
   }, [authReady, loadData])
 
-  // Helper to get device name
-  const getDeviceName = (device) => {
-    if (!device) return 'Unknown'
-    let name = device.iotInstanceName ?? device.deviceName ?? device.DeviceName ?? device.device_name ?? device.Device ?? device.device ?? device.name ?? device.Name ?? null
-    if (!name) {
-      for (const [key, val] of Object.entries(device)) {
-        if (typeof val === 'string' && val.length > 0 && !key.toLowerCase().includes('hub')) {
-          name = val
-          break
-        }
-      }
-    }
-    return name || 'Unknown'
-  }
-
   // Derived stats
   const totalSites = new Set(
     devices.map(d => d.hubName ?? d.HubName ?? d.hub ?? d.Hub ?? ''),
@@ -186,14 +172,7 @@ export default function App() {
   const getDeviceConnectionStatus = (d) => {
     const name = getDeviceName(d)
     const r = statusMap[name] ?? statusMap[name.toLowerCase()]
-    if (!r) return 'offline'
-    const msgs = r?.messagesLast24h ?? r?.MessagesLast24h ?? r?.messages_last_24h ?? null
-    const beckhoff = msgs !== null && msgs !== undefined && (typeof msgs === 'number' ? msgs : parseInt(msgs, 10)) > 0
-    const luezeMsgs = r?.luezeMessagesLast24h ?? r?.LuezeMessagesLast24h ?? r?.lueze_messages_last_24h ?? null
-    const lueze = luezeMsgs !== null && luezeMsgs !== undefined && (typeof luezeMsgs === 'number' ? luezeMsgs : parseInt(luezeMsgs, 10)) > 0
-    if (beckhoff && lueze) return 'online'
-    if (beckhoff || lueze) return 'partial'
-    return 'offline'
+    return getConnectionStatus(r)
   }
 
   // Helper: is a device "Not Implemented" (no valid instance name for arc-status)

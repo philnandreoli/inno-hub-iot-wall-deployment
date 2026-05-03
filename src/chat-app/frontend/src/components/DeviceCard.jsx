@@ -7,141 +7,26 @@ import {
   sendBlinkPattern,
   fetchDeviceStatus,
 } from '../api.js'
+import {
+  getDeviceName,
+  getLampState,
+  getFanState,
+  getFanRaw,
+  getBlinkPattern,
+  getTemperature,
+  getMessagesLast24h,
+  getLuezeMessagesLast24h,
+  getConnectionStatus,
+  getLuezeBarcode,
+  getLuezeTimestamp,
+  deriveAzureStatus,
+} from '../utils/deviceHelpers.js'
 
 const BLINK_PATTERNS = [0, 1, 2, 3, 4, 5, 6]
-
-function getLampState(record) {
-  if (!record) return null
-  // Try actual API field names first, then fallbacks
-  const val =
-    record.isLampOn ?? record.lamp ?? record.Lamp ?? record.lampState ?? record.LampState ?? null
-  if (val === null || val === undefined) return null
-  if (typeof val === 'boolean') return val
-  if (typeof val === 'number') return val !== 0
-  if (typeof val === 'string') return val.toLowerCase() === 'true' || val === '1' || val.toLowerCase() === 'on'
-  return null
-}
-
-function getFanState(record) {
-  if (!record) return null
-  // Try actual API field names first, then fallbacks
-  const val =
-    record.fanOnOrOff ?? record.fanOnOff ?? record.fan ?? record.Fan ?? record.fanSpeed ?? record.FanSpeed ?? null
-  if (val === null || val === undefined) return null
-  if (typeof val === 'boolean') return val
-  if (typeof val === 'number') return val > 0
-  if (typeof val === 'string') return parseFloat(val) > 0 || val.toLowerCase() === 'true' || val.toLowerCase() === 'on'
-  return null
-}
-
-function getFanRaw(record) {
-  if (!record) return null
-  return record.fanOnOrOff ?? record.fanOnOff ?? record.fan ?? record.Fan ?? record.fanSpeed ?? record.FanSpeed ?? null
-}
-
-function getBlinkPattern(record) {
-  if (!record) return null
-  const val = record.blinkPattern ?? record.BlinkPattern ?? record.blink_pattern ?? null
-  if (val === null || val === undefined) return null
-  if (typeof val === 'number') return val
-  if (typeof val === 'string') return parseInt(val, 10)
-  return null
-}
-
-function getTemperature(record) {
-  if (!record) return null
-  const val = record.temperatureF ?? record.temperature ?? record.Temperature ?? record.temp ?? record.Temp ?? null
-  if (val === null || val === undefined) return null
-  if (typeof val === 'number') return val
-  if (typeof val === 'string') {
-    const parsed = parseFloat(val)
-    return isNaN(parsed) ? null : parsed
-  }
-  return null
-}
-
-function getMessagesLast24h(record) {
-  if (!record) return 0
-  const val = record.messagesLast24h ?? record.MessagesLast24h ?? record.messages_last_24h ?? null
-  if (val === null || val === undefined) return 0
-  if (typeof val === 'number') return val
-  if (typeof val === 'string') {
-    const parsed = parseInt(val, 10)
-    return isNaN(parsed) ? 0 : parsed
-  }
-  return 0
-}
-
-function getLuezeMessagesLast24h(record) {
-  if (!record) return 0
-  const val = record.luezeMessagesLast24h ?? record.LuezeMessagesLast24h ?? record.lueze_messages_last_24h ?? null
-  if (val === null || val === undefined) return 0
-  if (typeof val === 'number') return val
-  if (typeof val === 'string') {
-    const parsed = parseInt(val, 10)
-    return isNaN(parsed) ? 0 : parsed
-  }
-  return 0
-}
-
-// Returns 'online' | 'partial' | 'offline'
-function getConnectionStatus(record) {
-  if (!record) return 'offline'
-  const beckhoff = getMessagesLast24h(record) > 0
-  const lueze = getLuezeMessagesLast24h(record) > 0
-  if (beckhoff && lueze) return 'online'
-  if (beckhoff || lueze) return 'partial'
-  return 'offline'
-}
-
-function getLuezeBarcode(record) {
-  if (!record) return null
-  return record.luezelastReadBarcode ?? record.luezeLastReadBarcode ?? record.LuezeLastReadBarcode ?? null
-}
-
-function getLuezeTimestamp(record) {
-  if (!record) return null
-  return record.luezeBarcodeIngestionTime ?? record.LuezeBarcodeIngestionTime ?? null
-}
 
 function getLuezeRecordCount(record) {
   if (!record) return 0
   return getLuezeMessagesLast24h(record)
-}
-
-/**
- * Derive the Azure Arc status for a device given its arc-status API response
- * and message counts.
- *
- * Returns: 'connected' | 'offline' | 'partial' | 'not-implemented'
- */
-function deriveAzureStatus(arcData, messagesLast24h, luezeMessagesLast24h) {
-  if (!arcData) return 'not-implemented'
-
-  const hostStatus = arcData.host?.status?.toLowerCase() ?? ''
-  const vmStatus = arcData.vm?.status?.toLowerCase() ?? ''
-  const k8sStatus = arcData.k8sCluster?.status?.toLowerCase() ?? ''
-
-  const allConnected = hostStatus === 'connected' && vmStatus === 'connected' && k8sStatus === 'connected'
-  const allDisconnected = hostStatus === 'disconnected' && vmStatus === 'disconnected' && k8sStatus === 'disconnected'
-
-  if (allConnected && messagesLast24h > 0 && luezeMessagesLast24h > 0) return 'connected'
-  if (allDisconnected) return 'offline'
-  return 'partial'
-}
-
-function getDeviceName(device) {
-  if (!device) return 'Unknown'
-  let name = device.iotInstanceName ?? device.deviceName ?? device.DeviceName ?? device.device_name ?? device.Device ?? device.device ?? device.name ?? device.Name ?? null
-  if (!name) {
-    for (const [key, val] of Object.entries(device)) {
-      if (typeof val === 'string' && val.length > 0 && !key.toLowerCase().includes('hub')) {
-        name = val
-        break
-      }
-    }
-  }
-  return name || ''
 }
 
 export function DeviceCard({ device, statusRecord, arcStatusData, onToast, onStatusUpdate, onCommandComplete, onSelectDevice, embedded }) {

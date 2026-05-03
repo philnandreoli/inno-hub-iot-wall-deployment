@@ -1,19 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { DeviceCard } from './DeviceCard.jsx'
-
-function getDeviceName(device) {
-  if (!device) return 'Unknown'
-  let name = device.iotInstanceName ?? device.deviceName ?? device.DeviceName ?? device.device_name ?? device.Device ?? device.device ?? device.name ?? device.Name ?? null
-  if (!name) {
-    for (const [key, val] of Object.entries(device)) {
-      if (typeof val === 'string' && val.length > 0 && !key.toLowerCase().includes('hub')) {
-        name = val
-        break
-      }
-    }
-  }
-  return name || 'Unknown'
-}
+import { getDeviceName } from '../utils/deviceHelpers.js'
 
 // Unique key for dedup — falls back to hubName so offline devices without
 // an iotInstanceName don't all collapse into a single "Unknown" entry.
