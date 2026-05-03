@@ -5,6 +5,14 @@ from typing import Any, Annotated
 from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
 from app.dependencies import get_arc_status_reader, get_publisher, get_status_reader, verify_token
+from app.models.responses import (
+    AllDevicesStatusResponse,
+    ArcStatusResponse,
+    CommandResponse,
+    DevicesByHubResponse,
+    DeviceStatusResponse,
+    DeviceTelemetryResponse,
+)
 from app.services.arc_status_reader import ArcStatusReader
 from app.services.mqtt_publisher import MqttPublisher
 from app.services.status_reader import EventhouseStatusReader
@@ -47,7 +55,7 @@ def _publish_device_command(
     }
 
 
-@router.get("/{device_name}/commands/status")
+@router.get("/{device_name}/commands/status", response_model=DeviceStatusResponse)
 def get_device_status(
     device_name: str,
     reader: StatusReaderDep,
@@ -64,7 +72,7 @@ def get_device_status(
         raise HTTPException(status_code=502, detail="Failed to fetch device status") from exc
 
 
-@router.get("/{device_name}/telemetry")
+@router.get("/{device_name}/telemetry", response_model=DeviceTelemetryResponse)
 def get_device_telemetry(
     device_name: str,
     reader: StatusReaderDep,
@@ -103,7 +111,7 @@ def get_device_telemetry(
         raise HTTPException(status_code=502, detail="Failed to fetch device telemetry") from exc
 
 
-@router.get("/by-hub")
+@router.get("/by-hub", response_model=DevicesByHubResponse)
 def get_devices_by_hub(
     reader: StatusReaderDep,
     _claims: ClaimsDep,
@@ -115,7 +123,7 @@ def get_devices_by_hub(
         raise HTTPException(status_code=502, detail="Failed to fetch devices by hub") from exc
 
 
-@router.get("/commands/status")
+@router.get("/commands/status", response_model=AllDevicesStatusResponse)
 def get_all_devices_status(
     reader: StatusReaderDep,
     _claims: ClaimsDep,
@@ -128,7 +136,7 @@ def get_all_devices_status(
 
 
 
-@router.get("/{device_name}/arc-status")
+@router.get("/{device_name}/arc-status", response_model=ArcStatusResponse)
 def get_device_arc_status(
     device_name: str,
     reader: StatusReaderDep,
@@ -175,7 +183,7 @@ def get_device_arc_status(
         raise HTTPException(status_code=502, detail="Failed to fetch Arc status") from exc
 
 
-@router.post("/{device_name}/commands/lamp/on")
+@router.post("/{device_name}/commands/lamp/on", response_model=CommandResponse)
 def lamp_on(
     device_name: str,
     publisher: PublisherDep,
@@ -189,7 +197,7 @@ def lamp_on(
     )
 
 
-@router.post("/{device_name}/commands/lamp/off")
+@router.post("/{device_name}/commands/lamp/off", response_model=CommandResponse)
 def lamp_off(
     device_name: str,
     publisher: PublisherDep,
@@ -203,7 +211,7 @@ def lamp_off(
     )
 
 
-@router.post("/{device_name}/commands/fan/on")
+@router.post("/{device_name}/commands/fan/on", response_model=CommandResponse)
 def fan_on(
     device_name: str,
     publisher: PublisherDep,
@@ -217,7 +225,7 @@ def fan_on(
     )
 
 
-@router.post("/{device_name}/commands/fan/off")
+@router.post("/{device_name}/commands/fan/off", response_model=CommandResponse)
 def fan_off(
     device_name: str,
     publisher: PublisherDep,
@@ -231,7 +239,7 @@ def fan_off(
     )
 
 
-@router.post("/{device_name}/commands/blinkpattern/{blink_pattern_number}")
+@router.post("/{device_name}/commands/blinkpattern/{blink_pattern_number}", response_model=CommandResponse)
 def blink_pattern(
     device_name: str,
     publisher: PublisherDep,
