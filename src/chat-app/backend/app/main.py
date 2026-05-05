@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
 
 from app.api.routes.devices import router as devices_router
 from app.api.routes.health import router as health_router
@@ -20,6 +21,14 @@ def create_app() -> FastAPI:
         else {"docs_url": None, "redoc_url": None, "openapi_url": None}
     )
     app = FastAPI(title="IoT Device Command API", **docs_kwargs)
+    if settings.cors_allowed_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.cors_allowed_origins,
+            allow_credentials=True,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
     app.include_router(health_router)
     app.include_router(devices_router)
     return app
