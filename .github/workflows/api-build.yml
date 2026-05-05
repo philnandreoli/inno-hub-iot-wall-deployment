@@ -118,4 +118,7 @@ jobs:
               APPLICATIONINSIGHTS_CONNECTION_STRING=${{ secrets.VITE_APPINSIGHTS_CONNECTION_STRING }} \
               ENABLE_DOCS=${{ vars.ENABLE_DOCS }} \
               AZURE_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }} \
+              APP_AZURE_OPENAI_ENDPOINT=${{ vars.APP_AZURE_OPENAI_ENDPOINT }} \
+              APP_AZURE_OPENAI_DEPLOYMENT=${{ vars.APP_AZURE_OPENAI_DEPLOYMENT }} \
+              APP_AZURE_OPENAI_API_VERSION=${{ vars.APP_AZURE_OPENAI_API_VERSION }} \
             --image ${{ secrets.ACR_HOSTNAME }}/iot-wall-api:${{ github.sha }}

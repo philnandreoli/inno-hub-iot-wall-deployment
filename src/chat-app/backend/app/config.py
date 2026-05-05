@@ -21,6 +21,9 @@ class Settings:
     applicationinsights_connection_string: str
     enable_docs: bool
     azure_subscription_id: str
+    azure_openai_endpoint: str
+    azure_openai_deployment: str
+    azure_openai_api_version: str
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -46,4 +49,9 @@ class Settings:
             ).strip(),
             enable_docs=os.getenv("ENABLE_DOCS", "false").strip().lower() in ("true", "1", "yes"),
             azure_subscription_id=os.getenv("AZURE_SUBSCRIPTION_ID", "").strip(),
+            azure_openai_endpoint=os.getenv("APP_AZURE_OPENAI_ENDPOINT", "").strip(),
+            azure_openai_deployment=os.getenv("APP_AZURE_OPENAI_DEPLOYMENT", "gpt-5.2").strip(),
+            azure_openai_api_version=os.getenv(
+                "APP_AZURE_OPENAI_API_VERSION", "2025-04-01-preview"
+            ).strip(),
         )

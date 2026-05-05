@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from app.api.routes.chat import router as chat_router
 from app.api.routes.devices import router as devices_router
 from app.api.routes.health import router as health_router
 from app.config import Settings
@@ -8,6 +9,7 @@ from app.telemetry import configure_telemetry
 openapi_tags = [
     {"name": "health", "description": "Service health endpoints."},
     {"name": "devices", "description": "Device command and status endpoints."},
+    {"name": "chat", "description": "Natural-language device command endpoints."},
 ]
 
 
@@ -22,6 +24,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="IoT Device Command API", **docs_kwargs)
     app.include_router(health_router)
     app.include_router(devices_router)
+    app.include_router(chat_router)
     return app
 
 
