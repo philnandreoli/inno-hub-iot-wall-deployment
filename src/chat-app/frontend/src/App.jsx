@@ -471,7 +471,7 @@ export default function App() {
         )}
       </button>
 
-      <ChatPanel isOpen={chatOpen} onClose={() => setChatOpen(false)} />
+      <ChatPanel isOpen={chatOpen} onClose={() => setChatOpen(false)} onCommandExecuted={loadData} />
     </div>
   )
 }

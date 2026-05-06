@@ -83,6 +83,16 @@ class DevicesByHubResponse(BaseModel):
     )
 
 
+class SitesResponse(BaseModel):
+    """Response for GET /sites."""
+
+    source: str = Field(description="Data source identifier")
+    count: int = Field(description="Number of sites returned")
+    sites: list[dict[str, Any]] = Field(
+        description="List of site records with NAME, CODE, IOT_INSTANCE_NAME, etc."
+    )
+
+
 # ---------------------------------------------------------------------------
 # Telemetry
 # ---------------------------------------------------------------------------

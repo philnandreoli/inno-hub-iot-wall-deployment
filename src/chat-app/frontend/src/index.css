@@ -3655,6 +3655,50 @@ body::after {
   cursor: not-allowed;
 }
 
+/* Microphone button */
+.chat-mic-btn {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.chat-mic-btn:hover:not(:disabled) {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.chat-mic-btn--active {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: #ef4444;
+  color: #ef4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+  animation: chat-mic-pulse 1.5s ease-in-out infinite;
+}
+
+.chat-mic-btn--active:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+}
+
+.chat-mic-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+@keyframes chat-mic-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2); }
+  50% { box-shadow: 0 0 0 5px rgba(239, 68, 68, 0.1); }
+}
+
 /* Spinner inside chat send/confirm */
 .chat-spinner {
   display: inline-block;
@@ -3671,66 +3715,35 @@ body::after {
 }
 
 /* Confirmation modal */
-.chat-modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 300;
-  background: rgba(4, 7, 15, 0.72);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-}
-
-.chat-modal {
-  background: var(--bg-panel);
-  border: 1px solid var(--amber-dim);
-  border-radius: var(--radius-lg);
-  padding: 24px;
-  max-width: 400px;
-  width: 100%;
-  box-shadow: 0 0 32px var(--amber-glow), var(--shadow-panel);
-}
-
-.chat-modal-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.chat-modal-title {
-  font-family: var(--font-ui);
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--amber);
-}
-
-.chat-modal-description {
-  font-family: var(--font-ui);
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--text-primary);
-  margin-bottom: 20px;
+/* Inline confirmation buttons (within chat) */
+.chat-confirm-inline {
   padding: 12px 14px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-dim);
-  border-radius: var(--radius-md);
 }
 
-.chat-modal-actions {
+.chat-confirm-description {
   display: flex;
-  gap: 10px;
-  justify-content: flex-end;
-}
-
-.chat-modal-btn {
-  padding: 8px 18px;
-  border-radius: var(--radius-md);
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-ui);
   font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--amber-dim);
+  border-radius: var(--radius-md);
+}
+
+.chat-confirm-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.chat-confirm-btn {
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
   cursor: pointer;
@@ -3738,41 +3751,37 @@ body::after {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-width: 80px;
   justify-content: center;
+  flex: 1;
 }
 
-.chat-modal-btn:disabled {
+.chat-confirm-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.chat-modal-btn--cancel {
+.chat-confirm-btn--cancel {
   background: var(--bg-surface);
   border: 1px solid var(--border-mid);
   color: var(--text-secondary);
 }
 
-.chat-modal-btn--cancel:hover:not(:disabled) {
+.chat-confirm-btn--cancel:hover:not(:disabled) {
   background: var(--bg-card-hover);
   color: var(--text-primary);
 }
 
-.chat-modal-btn--confirm {
+.chat-confirm-btn--confirm {
   background: var(--amber-glow);
   border: 1px solid var(--amber-dim);
   color: var(--amber);
 }
 
-.chat-modal-btn--confirm:hover:not(:disabled) {
+.chat-confirm-btn--confirm:hover:not(:disabled) {
   background: rgba(255, 171, 0, 0.25);
 }
 
 /* Light theme overrides */
 [data-theme='light'] .chat-fab {
   box-shadow: 0 4px 20px rgba(0, 111, 163, 0.2), 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-[data-theme='light'] .chat-modal-overlay {
-  background: rgba(220, 232, 255, 0.72);
 }

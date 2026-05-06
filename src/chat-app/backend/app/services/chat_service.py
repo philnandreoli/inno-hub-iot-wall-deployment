@@ -15,7 +15,7 @@ import logging
 from typing import Any
 
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-from openai import AzureOpenAI
+from openai import OpenAI
 
 from app.config import Settings
 from app.services.mqtt_publisher import MqttPublisher
@@ -32,24 +32,58 @@ Beckhoff PLCs and Leuze barcode readers connected via Azure IoT Operations.
 
 You help operators control and monitor devices using natural language.
 
-Available devices follow the naming convention: <location>-<identifier>-vm-k3s
-(e.g. atl-azureiot-vm-k3s, dal-mtc2032-vm-k3s).
+Available devices follow the naming convention: <hub-code>-<identifier>-vm-k3s
+(e.g. atl-azureiot-vm-k3s, chi-hjw4894-vm-k3s).
+
+Hub codes map to cities as follows:
+- ATL = Atlanta
+- BOS = Boston
+- CHI = Chicago
+- DAL = Dallas
+- DET = Detroit
+- MSP = Minneapolis
+- NYC = New York City
+- PHI = Philadelphia
+- SEA = Seattle
+- STL = St. Louis
+- TOR = Toronto
+
+When a user refers to a city name (e.g. "Chicago", "Detroit"), match it to
+the hub code prefix and look up the device. If multiple devices share the same
+hub code, list them and ask which one.
 
 You have access to these tools:
+- list_devices: list all known devices grouped by hub (use when user says a city name)
 - get_device_status: read the latest status of a device (executes immediately)
 - get_device_telemetry: read historical telemetry for a device (executes immediately)
 - set_lamp_state: turn the indicator lamp on or off (requires confirmation)
 - set_fan_state: turn the cooling fan on or off (requires confirmation)
 - set_blink_pattern: set the LED blink pattern 0-6 (requires confirmation)
 
-For write commands (lamp, fan, blink), always describe what you are about to do
-and wait for the user to confirm before the action is taken.
+For write commands (lamp, fan, blink), simply call the tool. The system will
+present a confirmation button to the operator automatically — do NOT ask the
+user to type "confirm" or say "please confirm".
 
 Keep responses concise and factual. If a device name is ambiguous, ask the
 operator to clarify.
 """
 
 _TOOLS: list[dict[str, Any]] = [
+    {
+        "type": "function",
+        "function": {
+            "name": "list_devices",
+            "description": (
+                "List all sites and their devices. Returns NAME (city), CODE (hub code), "
+                "and IOT_INSTANCE_NAME (the device name to use with other tools). "
+                "Use this when the user refers to a city or location name."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {},
+            },
+        },
+    },
     {
         "type": "function",
         "function": {
@@ -200,14 +234,14 @@ class ChatService:
                 "Missing required environment variable: APP_AZURE_OPENAI_ENDPOINT"
             )
 
-        token_provider = get_bearer_token_provider(
-            DefaultAzureCredential(),
-            "https://cognitiveservices.azure.com/.default",
+        self._credential = DefaultAzureCredential()
+        self._token_provider = get_bearer_token_provider(
+            self._credential,
+            "https://ai.azure.com/.default",
         )
-        self._client = AzureOpenAI(
-            azure_endpoint=settings.azure_openai_endpoint,
-            api_version=settings.azure_openai_api_version,
-            azure_ad_token_provider=token_provider,
+        self._client = OpenAI(
+            base_url=settings.azure_openai_endpoint,
+            api_key=self._token_provider(),
         )
         self._deployment = settings.azure_openai_deployment
         self._publisher = publisher
@@ -215,8 +249,8 @@ class ChatService:
 
         # session_id → list of OpenAI message dicts
         self._sessions: dict[str, list[dict[str, Any]]] = {}
-        # session_id → pending write action waiting for confirmation
-        self._pending: dict[str, dict[str, Any]] = {}
+        # session_id → list of pending write actions waiting for confirmation
+        self._pending: dict[str, list[dict[str, Any]]] = {}
 
     # ------------------------------------------------------------------
     # Public API
@@ -239,48 +273,43 @@ class ChatService:
         return {"message": response_message, "pending_action": pending_action}
 
     def confirm_action(self, session_id: str) -> dict[str, Any]:
-        """Execute the pending write action and return ``{message, pending_action}``."""
-        pending = self._pending.pop(session_id, None)
-        if pending is None:
+        """Execute all pending write actions and return ``{message, pending_action}``."""
+        pending_list = self._pending.pop(session_id, None)
+        if not pending_list:
             return {"message": "No pending action to confirm.", "pending_action": None}
 
         history = self._get_or_create_session(session_id)
-        tool_call_id = pending["tool_call_id"]
 
-        # Execute the actual device command
-        try:
-            result_content = self._execute_write_tool(
-                pending["function_name"], pending["arguments"]
-            )
-        except Exception as exc:  # noqa: BLE001
-            logger.exception(
-                "Failed to execute confirmed action %s", pending["function_name"]
-            )
-            result_content = f"Error executing command: {exc}"
+        # Execute each pending command and replace its placeholder
+        for pending in pending_list:
+            try:
+                result_content = self._execute_write_tool(
+                    pending["function_name"], pending["arguments"]
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.exception(
+                    "Failed to execute confirmed action %s", pending["function_name"]
+                )
+                result_content = f"Error executing command: {exc}"
 
-        # Append tool result so the model can summarise the outcome
-        history.append({
-            "role": "tool",
-            "tool_call_id": tool_call_id,
-            "content": result_content,
-        })
+            self._replace_tool_response(history, pending["tool_call_id"], result_content)
+
         self._trim_history(history)
 
         response_message, pending_action = self._run_completion(session_id, history)
         return {"message": response_message, "pending_action": pending_action}
 
     def cancel_action(self, session_id: str) -> dict[str, Any]:
-        """Cancel the pending write action and return ``{message, pending_action}``."""
-        pending = self._pending.pop(session_id, None)
-        if pending is None:
+        """Cancel all pending write actions and return ``{message, pending_action}``."""
+        pending_list = self._pending.pop(session_id, None)
+        if not pending_list:
             return {"message": "No pending action to cancel.", "pending_action": None}
 
         history = self._get_or_create_session(session_id)
-        history.append({
-            "role": "tool",
-            "tool_call_id": pending["tool_call_id"],
-            "content": "Action was cancelled by the operator.",
-        })
+        for pending in pending_list:
+            self._replace_tool_response(
+                history, pending["tool_call_id"], "Action was cancelled by the operator."
+            )
         self._trim_history(history)
 
         response_message, pending_action = self._run_completion(session_id, history)
@@ -303,10 +332,36 @@ class ChatService:
         return self._sessions[session_id]
 
     def _trim_history(self, history: list[dict[str, Any]]) -> None:
-        """Keep the system prompt plus the most recent messages."""
-        if len(history) > _MAX_HISTORY:
-            # Always keep history[0] (system prompt)
-            history[1:] = history[-((_MAX_HISTORY - 1)):]
+        """Keep the system prompt plus the most recent messages.
+
+        Never trim between an assistant message with tool_calls and its
+        subsequent tool response(s) — that would produce an invalid message
+        sequence for the OpenAI API.
+        """
+        if len(history) <= _MAX_HISTORY:
+            return
+        # Start from the intended cut point and walk forward until we find a
+        # message that is NOT a tool response (safe boundary).
+        cut = len(history) - (_MAX_HISTORY - 1)
+        while cut < len(history) and isinstance(history[cut], dict) and history[cut].get("role") == "tool":
+            cut -= 1  # include the preceding assistant message
+        history[1:] = history[cut:]
+
+    @staticmethod
+    def _replace_tool_response(
+        history: list[dict[str, Any]], tool_call_id: str, content: str
+    ) -> None:
+        """Find the placeholder tool response in history and replace its content."""
+        for msg in history:
+            if (
+                isinstance(msg, dict)
+                and msg.get("role") == "tool"
+                and msg.get("tool_call_id") == tool_call_id
+            ):
+                msg["content"] = content
+                return
+        # Fallback: if no placeholder found, append (shouldn't happen)
+        history.append({"role": "tool", "tool_call_id": tool_call_id, "content": content})
 
     def _run_completion(
         self,
@@ -314,6 +369,8 @@ class ChatService:
         history: list[dict[str, Any]],
     ) -> tuple[str, dict[str, Any] | None]:
         """Call the model; handle tool calls; return (message_text, pending_action)."""
+        # Refresh the bearer token before each call (tokens expire after ~1h)
+        self._client.api_key = self._token_provider()
         try:
             response = self._client.chat.completions.create(
                 model=self._deployment,
@@ -333,52 +390,73 @@ class ChatService:
             history.append({"role": "assistant", "content": text})
             return text, None
 
-        # Tool call requested
-        tool_call = choice.message.tool_calls[0]
-        func_name = tool_call.function.name
-        try:
-            args: dict[str, Any] = json.loads(tool_call.function.arguments)
-        except json.JSONDecodeError:
-            args = {}
-
-        # Append assistant message with the tool call to history
-        history.append(choice.message)
-
-        if func_name in _WRITE_TOOLS:
-            # Write tool — require human confirmation
-            pending = {
-                "tool_call_id": tool_call.id,
-                "function_name": func_name,
-                "arguments": args,
-                "description": _human_readable_action(func_name, args),
+        # Append assistant message with all tool calls to history as a plain dict
+        # (raw ChatCompletionMessage objects don't re-serialize tool_calls reliably)
+        assistant_msg: dict[str, Any] = {"role": "assistant", "content": choice.message.content}
+        assistant_msg["tool_calls"] = [
+            {
+                "id": tc.id,
+                "type": "function",
+                "function": {"name": tc.function.name, "arguments": tc.function.arguments},
             }
-            self._pending[session_id] = pending
+            for tc in choice.message.tool_calls
+        ]
+        history.append(assistant_msg)
 
-            confirmation_prompt = (
-                f"I'm ready to: **{pending['description']}**. "
-                "Please confirm to proceed, or cancel to abort."
+        # Process all tool calls in the response
+        pending_writes: list[dict[str, Any]] = []
+        for tool_call in choice.message.tool_calls:
+            func_name = tool_call.function.name
+            try:
+                args: dict[str, Any] = json.loads(tool_call.function.arguments)
+            except json.JSONDecodeError:
+                args = {}
+
+            if func_name in _WRITE_TOOLS:
+                pending_writes.append({
+                    "tool_call_id": tool_call.id,
+                    "function_name": func_name,
+                    "arguments": args,
+                    "description": _human_readable_action(func_name, args),
+                })
+                # Provide a placeholder tool response so the API doesn't reject it
+                history.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": "Awaiting operator confirmation.",
+                })
+            else:
+                # Read tool — execute immediately
+                try:
+                    result_content = self._execute_read_tool(func_name, args)
+                except Exception as exc:  # noqa: BLE001
+                    logger.exception("Failed to execute read tool %s", func_name)
+                    result_content = f"Error: {exc}"
+
+                history.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": result_content,
+                })
+
+        # If there are pending write actions, return the confirmation prompt
+        if pending_writes:
+            self._pending[session_id] = pending_writes
+            descriptions = [p["description"] for p in pending_writes]
+            confirmation_prompt = "Ready to:\n" + "\n".join(
+                f"- **{d}**" for d in descriptions
             )
+            # Return the first action's info for the frontend button
+            first = pending_writes[0]
             return confirmation_prompt, {
-                "function_name": func_name,
-                "arguments": args,
-                "description": pending["description"],
+                "function_name": first["function_name"],
+                "arguments": first["arguments"],
+                "description": "; ".join(descriptions),
             }
 
-        # Read tool — execute immediately
-        try:
-            result_content = self._execute_read_tool(func_name, args)
-        except Exception as exc:  # noqa: BLE001
-            logger.exception("Failed to execute read tool %s", func_name)
-            result_content = f"Error: {exc}"
-
-        history.append({
-            "role": "tool",
-            "tool_call_id": tool_call.id,
-            "content": result_content,
-        })
         self._trim_history(history)
 
-        # Re-run completion so the model can interpret the tool result
+        # Re-run completion so the model can interpret the tool results
         return self._run_completion(session_id, history)
 
     # ------------------------------------------------------------------
@@ -387,6 +465,13 @@ class ChatService:
 
     def _execute_read_tool(self, func_name: str, args: dict[str, Any]) -> str:
         device_name = args.get("device_name", "")
+
+        if func_name == "list_devices":
+            try:
+                result = self._status_reader.get_sites()
+                return json.dumps(result, default=str)
+            except Exception as exc:  # noqa: BLE001
+                return f"Failed to list devices: {exc}"
 
         if func_name == "get_device_status":
             try:

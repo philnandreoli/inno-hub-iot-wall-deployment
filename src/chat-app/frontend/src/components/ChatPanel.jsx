@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { sendChatMessage, confirmChatAction, cancelChatAction } from '../api.js'
+
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
 
 function getOrCreateSessionId() {
   let id = sessionStorage.getItem('iot-chat-session')
@@ -23,23 +25,22 @@ function MessageBubble({ msg }) {
   )
 }
 
-function ConfirmationModal({ action, onConfirm, onCancel, loading }) {
+function ConfirmationButtons({ action, onConfirm, onCancel, loading }) {
   return (
-    <div className="chat-modal-overlay" role="dialog" aria-modal="true" aria-label="Confirm command">
-      <div className="chat-modal">
-        <div className="chat-modal-header">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <div className="chat-bubble-row chat-bubble-row--assistant">
+      <div className="chat-bubble chat-bubble--assistant chat-confirm-inline">
+        <div className="chat-confirm-description">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
             <line x1="12" y1="9" x2="12" y2="13"/>
             <line x1="12" y1="17" x2="12.01" y2="17"/>
           </svg>
-          <span className="chat-modal-title">Confirm Command</span>
+          <span>{action.description}</span>
         </div>
-        <p className="chat-modal-description">{action.description}</p>
-        <div className="chat-modal-actions">
+        <div className="chat-confirm-actions">
           <button
             type="button"
-            className="chat-modal-btn chat-modal-btn--cancel"
+            className="chat-confirm-btn chat-confirm-btn--cancel"
             onClick={onCancel}
             disabled={loading}
           >
@@ -47,7 +48,7 @@ function ConfirmationModal({ action, onConfirm, onCancel, loading }) {
           </button>
           <button
             type="button"
-            className="chat-modal-btn chat-modal-btn--confirm"
+            className="chat-confirm-btn chat-confirm-btn--confirm"
             onClick={onConfirm}
             disabled={loading}
           >
@@ -63,7 +64,7 @@ function ConfirmationModal({ action, onConfirm, onCancel, loading }) {
   )
 }
 
-export function ChatPanel({ isOpen, onClose }) {
+export function ChatPanel({ isOpen, onClose, onCommandExecuted }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
@@ -75,14 +76,57 @@ export function ChatPanel({ isOpen, onClose }) {
   const [pendingAction, setPendingAction] = useState(null)
   const [confirmLoading, setConfirmLoading] = useState(false)
   const [sessionId] = useState(getOrCreateSessionId)
+  const [isListening, setIsListening] = useState(false)
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
+  const recognitionRef = useRef(null)
 
   useEffect(() => {
     if (isOpen && inputRef.current) {
       inputRef.current.focus()
     }
   }, [isOpen])
+
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort()
+      }
+    }
+  }, [])
+
+  const toggleListening = useCallback(() => {
+    if (!SpeechRecognition) return
+
+    if (isListening) {
+      recognitionRef.current?.stop()
+      setIsListening(false)
+      return
+    }
+
+    const recognition = new SpeechRecognition()
+    recognition.continuous = true
+    recognition.interimResults = false
+    recognition.lang = 'en-US'
+
+    recognition.onresult = (event) => {
+      let transcript = ''
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          transcript += event.results[i][0].transcript
+        }
+      }
+      if (transcript) {
+        setInput(prev => prev ? `${prev} ${transcript}` : transcript)
+      }
+    }
+    recognition.onerror = () => setIsListening(false)
+    recognition.onend = () => setIsListening(false)
+
+    recognitionRef.current = recognition
+    recognition.start()
+    setIsListening(true)
+  }, [isListening])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -116,6 +160,10 @@ export function ChatPanel({ isOpen, onClose }) {
       const data = await confirmChatAction(sessionId)
       setPendingAction(null)
       setMessages(prev => [...prev, { role: 'assistant', content: data.message }])
+      if (onCommandExecuted) {
+        // Delay refresh to allow the device time to process the command
+        setTimeout(() => onCommandExecuted(), 3000)
+      }
     } catch (err) {
       setPendingAction(null)
       setMessages(prev => [
@@ -154,14 +202,13 @@ export function ChatPanel({ isOpen, onClose }) {
   if (!isOpen) return null
 
   return (
-    <>
-      <div className="chat-panel" role="complementary" aria-label="AI device assistant">
+      <div className="chat-panel" role="complementary" aria-label="Nexus AI assistant">
         <div className="chat-panel-header">
           <div className="chat-panel-header-title">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
             </svg>
-            <span>AI Assistant</span>
+            <span>Nexus AI</span>
           </div>
           <button
             type="button"
@@ -180,6 +227,14 @@ export function ChatPanel({ isOpen, onClose }) {
           {messages.map((msg, i) => (
             <MessageBubble key={i} msg={msg} />
           ))}
+          {pendingAction && (
+            <ConfirmationButtons
+              action={pendingAction}
+              onConfirm={handleConfirm}
+              onCancel={handleCancel}
+              loading={confirmLoading}
+            />
+          )}
           {loading && (
             <div className="chat-bubble-row chat-bubble-row--assistant">
               <div className="chat-bubble chat-bubble--assistant chat-bubble--typing">
@@ -204,6 +259,22 @@ export function ChatPanel({ isOpen, onClose }) {
             disabled={loading || !!pendingAction}
             aria-label="Chat input"
           />
+          {SpeechRecognition && (
+            <button
+              type="button"
+              className={`chat-mic-btn${isListening ? ' chat-mic-btn--active' : ''}`}
+              onClick={toggleListening}
+              disabled={loading || !!pendingAction}
+              aria-label={isListening ? 'Stop listening' : 'Start voice input'}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+                <path d="M19 10v2a7 7 0 01-14 0v-2"/>
+                <line x1="12" y1="19" x2="12" y2="23"/>
+                <line x1="8" y1="23" x2="16" y2="23"/>
+              </svg>
+            </button>
+          )}
           <button
             type="button"
             className="chat-send-btn"
@@ -218,15 +289,5 @@ export function ChatPanel({ isOpen, onClose }) {
           </button>
         </div>
       </div>
-
-      {pendingAction && (
-        <ConfirmationModal
-          action={pendingAction}
-          onConfirm={handleConfirm}
-          onCancel={handleCancel}
-          loading={confirmLoading}
-        />
-      )}
-    </>
   )
 }

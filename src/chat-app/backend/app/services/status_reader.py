@@ -114,6 +114,24 @@ class EventhouseStatusReader:
             "devicesByHub": jsonable_encoder(rows),
         }
 
+    def get_sites(self) -> dict[str, Any]:
+        response = self._execute_query("get_sites()")
+        if not response.primary_results:
+            raise RuntimeError("Fabric Eventhouse query returned no result set")
+
+        result_table = response.primary_results[0]
+        columns = [column.column_name for column in result_table.columns]
+        rows = [
+            {column: row[index] for index, column in enumerate(columns)}
+            for row in result_table
+        ]
+
+        return {
+            "source": "fabric-eventhouse",
+            "count": len(rows),
+            "sites": jsonable_encoder(rows),
+        }
+
     def get_all_devices_status(self) -> dict[str, Any]:
         response = self._execute_query("get_beckhoff_last_status_all_hubs()")
         if not response.primary_results:
