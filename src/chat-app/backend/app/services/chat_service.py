@@ -298,28 +298,61 @@ class ChatService:
         response_message, pending_action = self._run_completion(session_id, history)
         return {"message": response_message, "pending_action": pending_action}
 
-    def confirm_action(self, session_id: str) -> dict[str, Any]:
-        """Execute all pending write actions and return ``{message, pending_action}``."""
+    def confirm_action(
+        self,
+        session_id: str,
+        fallback_action: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Execute all pending write actions and return ``{message, pending_action}``.
+
+        If the in-memory pending state was lost (e.g. container restart),
+        ``fallback_action`` from the client is used to execute the command.
+        """
         pending_list = self._pending.pop(session_id, None)
+        is_fallback = False
+        if not pending_list and fallback_action:
+            # Reconstruct from client-provided action details
+            func_name = fallback_action.get("function_name", "")
+            args = fallback_action.get("arguments", {})
+            if func_name in _WRITE_TOOLS:
+                pending_list = [{
+                    "tool_call_id": "fallback",
+                    "function_name": func_name,
+                    "arguments": args,
+                    "description": _human_readable_action(func_name, args),
+                }]
+                is_fallback = True
         if not pending_list:
             return {"message": "No pending action to confirm.", "pending_action": None}
 
-        history = self._get_or_create_session(session_id)
-
-        # Execute each pending command and replace its placeholder
+        # Execute each pending command
+        results: list[str] = []
         for pending in pending_list:
             try:
                 result_content = self._execute_write_tool(
                     pending["function_name"], pending["arguments"]
                 )
+                results.append(f"✓ {pending['description']}")
             except Exception as exc:  # noqa: BLE001
                 logger.exception(
                     "Failed to execute confirmed action %s", pending["function_name"]
                 )
                 result_content = f"Error executing command: {exc}"
+                results.append(f"✗ {pending['description']}: {exc}")
 
-            self._replace_tool_response(history, pending["tool_call_id"], result_content)
+            if not is_fallback:
+                history = self._get_or_create_session(session_id)
+                self._replace_tool_response(
+                    history, pending["tool_call_id"], result_content
+                )
 
+        # When using fallback (no conversation history), return a direct
+        # confirmation message instead of re-calling OpenAI.
+        if is_fallback:
+            message = "Command executed:\n" + "\n".join(results)
+            return {"message": message, "pending_action": None}
+
+        history = self._get_or_create_session(session_id)
         self._trim_history(history)
 
         response_message, pending_action = self._run_completion(session_id, history)

@@ -59,8 +59,17 @@ def confirm_action(
     _claims: ClaimsDep,
 ) -> dict[str, Any]:
     """Confirm and execute the pending write command for the given session."""
+    fallback = None
+    if body.pendingAction:
+        fallback = {
+            "function_name": body.pendingAction.functionName,
+            "arguments": body.pendingAction.arguments,
+        }
     try:
-        result = service.confirm_action(session_id=body.sessionId)
+        result = service.confirm_action(
+            session_id=body.sessionId,
+            fallback_action=fallback,
+        )
     except Exception as exc:  # noqa: BLE001
         logger.exception(
             "Failed to confirm action for session %s", body.sessionId

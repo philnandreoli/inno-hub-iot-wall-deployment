@@ -128,11 +128,13 @@ export async function sendChatMessage(sessionId, message, deviceContext = null) 
   return res.json()
 }
 
-export async function confirmChatAction(sessionId) {
+export async function confirmChatAction(sessionId, pendingAction = null) {
+  const body = { sessionId }
+  if (pendingAction) body.pendingAction = pendingAction
   const res = await authFetch(`${BASE}/api/chat/confirm`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sessionId }),
+    body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`Confirm action failed: ${res.status}`)
   return res.json()

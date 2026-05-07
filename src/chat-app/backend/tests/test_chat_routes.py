@@ -31,7 +31,7 @@ class FakeChatService:
             }
         return {"message": "I can help with device commands.", "pending_action": None}
 
-    def confirm_action(self, session_id: str) -> dict:
+    def confirm_action(self, session_id: str, fallback_action: dict | None = None) -> dict:
         return {"message": "Lamp turned ON successfully.", "pending_action": None}
 
     def cancel_action(self, session_id: str) -> dict:

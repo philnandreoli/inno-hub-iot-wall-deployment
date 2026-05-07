@@ -185,3 +185,10 @@ class ChatConfirmRequest(BaseModel):
     """Request body for POST /api/chat/confirm and POST /api/chat/cancel."""
 
     sessionId: str = Field(description="Session identifier matching the pending action")
+    pendingAction: PendingAction | None = Field(
+        None,
+        description=(
+            "Optional fallback action details. Used when server-side state "
+            "is lost (e.g. container restart) so the command can still execute."
+        ),
+    )

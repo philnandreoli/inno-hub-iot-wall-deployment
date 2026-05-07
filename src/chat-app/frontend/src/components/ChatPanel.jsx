@@ -174,7 +174,7 @@ export function ChatPanel({ isOpen, onClose, onCommandExecuted, deviceContext })
   async function handleConfirm() {
     setConfirmLoading(true)
     try {
-      const data = await confirmChatAction(sessionId)
+      const data = await confirmChatAction(sessionId, pendingAction)
       setPendingAction(null)
       setMessages(prev => [...prev, { role: 'assistant', content: data.message }])
       if (onCommandExecuted) {
