@@ -83,6 +83,16 @@ class DevicesByHubResponse(BaseModel):
     )
 
 
+class SitesResponse(BaseModel):
+    """Response for GET /sites."""
+
+    source: str = Field(description="Data source identifier")
+    count: int = Field(description="Number of sites returned")
+    sites: list[dict[str, Any]] = Field(
+        description="List of site records with NAME, CODE, IOT_INSTANCE_NAME, etc."
+    )
+
+
 # ---------------------------------------------------------------------------
 # Telemetry
 # ---------------------------------------------------------------------------
@@ -131,3 +141,47 @@ class ArcStatusResponse(BaseModel):
     host: ArcResource = Field(description="HybridCompute status for the bare-metal host")
     vm: ArcResource = Field(description="HybridCompute status for the VM")
     k8sCluster: ArcResource = Field(description="ConnectedCluster status for the K8s cluster")
+
+
+# ---------------------------------------------------------------------------
+# Chat (natural-language device commands)
+# ---------------------------------------------------------------------------
+
+class ChatRequest(BaseModel):
+    """Request body for POST /api/chat."""
+
+    sessionId: str = Field(description="Browser-tab-scoped session identifier (UUID)")
+    message: str = Field(description="Natural-language message from the operator")
+    deviceContext: str | None = Field(
+        None,
+        description="Device name the operator is currently viewing (auto-filled by the UI)",
+    )
+
+
+class PendingAction(BaseModel):
+    """A write command that has been parsed but not yet executed."""
+
+    functionName: str = Field(description="Internal tool name (e.g. 'set_lamp_state')")
+    arguments: dict[str, Any] = Field(description="Parsed arguments for the function")
+    description: str = Field(
+        description="Human-readable description of the action (e.g. 'Turn lamp ON on atl-azureiot-vm-k3s')"
+    )
+
+
+class ChatResponse(BaseModel):
+    """Response for POST /api/chat and POST /api/chat/confirm."""
+
+    message: str = Field(description="Assistant's reply to display in the chat panel")
+    pendingAction: PendingAction | None = Field(
+        None,
+        description=(
+            "Set when a write command is ready for confirmation. "
+            "Null for read-only queries or after a command is resolved."
+        ),
+    )
+
+
+class ChatConfirmRequest(BaseModel):
+    """Request body for POST /api/chat/confirm and POST /api/chat/cancel."""
+
+    sessionId: str = Field(description="Session identifier matching the pending action")

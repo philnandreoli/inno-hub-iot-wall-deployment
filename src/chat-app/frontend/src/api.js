@@ -115,3 +115,35 @@ export async function fetchDeviceArcStatus(deviceName) {
   if (!res.ok) throw new Error(`Arc status fetch failed: ${res.status}`)
   return res.json()
 }
+
+export async function sendChatMessage(sessionId, message, deviceContext = null) {
+  const body = { sessionId, message }
+  if (deviceContext) body.deviceContext = deviceContext
+  const res = await authFetch(`${BASE}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`Chat request failed: ${res.status}`)
+  return res.json()
+}
+
+export async function confirmChatAction(sessionId) {
+  const res = await authFetch(`${BASE}/api/chat/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId }),
+  })
+  if (!res.ok) throw new Error(`Confirm action failed: ${res.status}`)
+  return res.json()
+}
+
+export async function cancelChatAction(sessionId) {
+  const res = await authFetch(`${BASE}/api/chat/cancel`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ sessionId }),
+  })
+  if (!res.ok) throw new Error(`Cancel action failed: ${res.status}`)
+  return res.json()
+}

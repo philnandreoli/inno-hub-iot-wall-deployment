@@ -12,6 +12,7 @@ from app.models.responses import (
     DevicesByHubResponse,
     DeviceStatusResponse,
     DeviceTelemetryResponse,
+    SitesResponse,
 )
 from app.services.arc_status_reader import ArcStatusReader
 from app.services.mqtt_publisher import MqttPublisher
@@ -121,6 +122,19 @@ def get_devices_by_hub(
     except Exception as exc:  # noqa: BLE001
         logger.exception("Failed to fetch devices by hub")
         raise HTTPException(status_code=502, detail="Failed to fetch devices by hub") from exc
+
+
+@router.get("/sites", response_model=SitesResponse)
+def get_sites(
+    reader: StatusReaderDep,
+    _claims: ClaimsDep,
+) -> dict[str, Any]:
+    """Return all sites with their device names (IOT_INSTANCE_NAME)."""
+    try:
+        return reader.get_sites()
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Failed to fetch sites")
+        raise HTTPException(status_code=502, detail="Failed to fetch sites") from exc
 
 
 @router.get("/commands/status", response_model=AllDevicesStatusResponse)

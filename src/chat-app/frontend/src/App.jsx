@@ -8,6 +8,7 @@ import { ViewToggle } from './components/ViewToggle.jsx'
 import { DeviceDetailPage } from './components/DeviceDetailPage.jsx'
 import { ArchitectureDiagram } from './components/ArchitectureDiagram.jsx'
 import { ToastContainer } from './components/ToastContainer.jsx'
+import { ChatPanel } from './components/ChatPanel.jsx'
 import { LoginPage } from './components/LoginPage.jsx'
 import { useToast } from './useToast.js'
 import { fetchAllDevicesStatus, fetchDeviceArcStatus, setMsalInstance } from './api.js'
@@ -40,6 +41,7 @@ export default function App() {
   })
   const [dashboardView, setDashboardView] = useState('grid') // 'grid' | 'map'
   const [hideOffline, setHideOffline] = useState(false)
+  const [chatOpen, setChatOpen] = useState(false)
   const [theme, setTheme] = useState(() => {
     if (typeof window === 'undefined') return 'dark'
     const stored = window.localStorage.getItem(THEME_STORAGE_KEY)
@@ -448,6 +450,28 @@ export default function App() {
       </main>
 
       <ToastContainer toasts={toasts} />
+
+      {/* Floating chat button */}
+      <button
+        type="button"
+        className={`chat-fab${chatOpen ? ' chat-fab--active' : ''}`}
+        onClick={() => setChatOpen(o => !o)}
+        aria-label={chatOpen ? 'Close AI assistant' : 'Open AI assistant'}
+        title="AI Device Assistant"
+      >
+        {chatOpen ? (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        ) : (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+          </svg>
+        )}
+      </button>
+
+      <ChatPanel isOpen={chatOpen} onClose={() => setChatOpen(false)} onCommandExecuted={loadData} deviceContext={selectedDevice ? getDeviceName(selectedDevice) : null} />
     </div>
   )
 }

@@ -252,3 +252,76 @@ def test_status_row_normalization_defaults_missing_required_fields() -> None:
     assert normalized["luezeMessagesLast24h"] == 0
     assert normalized["luezeLastReadBarcode"] is None
     assert normalized["luezeBarcodeIngestionTime"] is None
+
+
+def test_measurement_normalization_replaces_nan_with_none() -> None:
+    reader = EventhouseStatusReader.__new__(EventhouseStatusReader)
+    row = {
+        "iotInstanceName": "dev-vm-k3s",
+        "tag": "temperature",
+        "timestamp": "2026-04-19T14:59:11Z",
+        "value_long": float("nan"),
+        "value_bool": None,
+    }
+
+    normalized = reader._normalize_measurement_row(row)
+
+    assert normalized["value_long"] is None
+
+
+def test_measurement_normalization_replaces_inf_with_none() -> None:
+    reader = EventhouseStatusReader.__new__(EventhouseStatusReader)
+    row = {
+        "iotInstanceName": "dev-vm-k3s",
+        "tag": "temperature",
+        "timestamp": "2026-04-19T14:59:11Z",
+        "value_long": float("inf"),
+        "value_bool": None,
+    }
+
+    normalized = reader._normalize_measurement_row(row)
+
+    assert normalized["value_long"] is None
+
+
+def test_telemetry_with_nan_returns_200() -> None:
+    """Regression test: avg() in Kusto can produce NaN which broke JSON serialization."""
+
+    class NaNTelemetryReader(FakeStatusReader):
+        def get_device_telemetry(
+            self,
+            device_name: str,
+            timespan: str | None = "7d",
+            start_date: Any = None,
+            end_date: Any = None,
+        ) -> dict[str, Any]:
+            # After the fix, _normalize_measurement_row converts NaN → None
+            return {
+                "deviceName": device_name,
+                "timespan": timespan,
+                "startDate": start_date,
+                "endDate": end_date,
+                "source": "fabric-eventhouse",
+                "count": 1,
+                "measurements": [
+                    {
+                        "iotInstanceName": device_name,
+                        "tag": "temperature",
+                        "timestamp": "2026-04-19T14:59:11Z",
+                        "value_long": None,
+                        "value_bool": None,
+                    }
+                ],
+            }
+
+    app = create_app()
+    app.dependency_overrides[verify_token] = fake_verify_token
+    app.dependency_overrides[get_publisher] = lambda: FakePublisher()
+    app.dependency_overrides[get_status_reader] = lambda: NaNTelemetryReader()
+    client = TestClient(app)
+
+    response = client.get("/api/devices/device-1-vm-k3s/telemetry")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["measurements"][0]["value_long"] is None

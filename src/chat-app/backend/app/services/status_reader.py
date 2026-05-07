@@ -1,4 +1,5 @@
 import logging
+import math
 import time
 from datetime import datetime, timedelta
 from typing import Any
@@ -114,6 +115,24 @@ class EventhouseStatusReader:
             "devicesByHub": jsonable_encoder(rows),
         }
 
+    def get_sites(self) -> dict[str, Any]:
+        response = self._execute_query("get_sites()")
+        if not response.primary_results:
+            raise RuntimeError("Fabric Eventhouse query returned no result set")
+
+        result_table = response.primary_results[0]
+        columns = [column.column_name for column in result_table.columns]
+        rows = [
+            {column: row[index] for index, column in enumerate(columns)}
+            for row in result_table
+        ]
+
+        return {
+            "source": "fabric-eventhouse",
+            "count": len(rows),
+            "sites": jsonable_encoder(rows),
+        }
+
     def get_all_devices_status(self) -> dict[str, Any]:
         response = self._execute_query("get_beckhoff_last_status_all_hubs()")
         if not response.primary_results:
@@ -194,12 +213,25 @@ class EventhouseStatusReader:
 
         return normalized
 
+    @staticmethod
+    def _to_finite_float(value: Any) -> float | None:
+        """Convert a numeric value to a finite float, replacing NaN/Inf with None."""
+        if value is None:
+            return None
+        try:
+            f = float(value)
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(f):
+            return None
+        return f
+
     def _normalize_measurement_row(self, row: dict[str, Any]) -> dict[str, Any]:
         return {
             "iotInstanceName": self._first_present(row, ["iotInstanceName", "iot_instance_name"]),
             "tag": self._first_present(row, ["tag"]),
             "timestamp": self._first_present(row, ["timestamp"]),
-            "value_long": self._first_present(row, ["value_long", "valueLong"]),
+            "value_long": self._to_finite_float(self._first_present(row, ["value_long", "valueLong"])),
             "value_bool": self._first_present(row, ["value_bool", "valueBool"]),
         }
 
