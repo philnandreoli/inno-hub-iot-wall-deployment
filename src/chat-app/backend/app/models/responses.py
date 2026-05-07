@@ -152,6 +152,10 @@ class ChatRequest(BaseModel):
 
     sessionId: str = Field(description="Browser-tab-scoped session identifier (UUID)")
     message: str = Field(description="Natural-language message from the operator")
+    deviceContext: str | None = Field(
+        None,
+        description="Device name the operator is currently viewing (auto-filled by the UI)",
+    )
 
 
 class PendingAction(BaseModel):

@@ -31,6 +31,7 @@ def chat(
         result = service.chat(
             session_id=body.sessionId,
             user_message=body.message,
+            device_context=body.deviceContext,
         )
     except Exception as exc:  # noqa: BLE001
         logger.exception("Chat processing failed for session %s", body.sessionId)

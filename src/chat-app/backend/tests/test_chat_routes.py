@@ -15,7 +15,7 @@ from app.services.chat_service import ChatService
 class FakeChatService:
     """Minimal stub for ChatService that avoids any Azure/OpenAI calls."""
 
-    def chat(self, session_id: str, user_message: str) -> dict:
+    def chat(self, session_id: str, user_message: str, device_context: str | None = None) -> dict:
         if "status" in user_message.lower():
             # Read query — no pending action
             return {"message": "Device is online.", "pending_action": None}

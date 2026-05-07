@@ -64,18 +64,18 @@ function ConfirmationButtons({ action, onConfirm, onCancel, loading }) {
   )
 }
 
-export function ChatPanel({ isOpen, onClose, onCommandExecuted }) {
-  const [messages, setMessages] = useState([
-    {
-      role: 'assistant',
-      content: 'Hello! I can help you control and monitor your IoT devices. Try asking "What is the status of [device-name]?" or "Turn the lamp on for [device-name]".',
-    },
-  ])
+export function ChatPanel({ isOpen, onClose, onCommandExecuted, deviceContext }) {
+  const initialMessage = {
+    role: 'assistant',
+    content: 'Hello! I can help you control and monitor your IoT devices. Try asking "What is the status of [device-name]?" or "Turn the lamp on for [device-name]".',
+  }
+
+  const [messages, setMessages] = useState([initialMessage])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [pendingAction, setPendingAction] = useState(null)
   const [confirmLoading, setConfirmLoading] = useState(false)
-  const [sessionId] = useState(getOrCreateSessionId)
+  const [sessionId, setSessionId] = useState(getOrCreateSessionId)
   const [isListening, setIsListening] = useState(false)
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
@@ -94,6 +94,21 @@ export function ChatPanel({ isOpen, onClose, onCommandExecuted }) {
       }
     }
   }, [])
+
+  function handleNewChat() {
+    const newId = crypto.randomUUID()
+    sessionStorage.setItem('iot-chat-session', newId)
+    setSessionId(newId)
+    setMessages([initialMessage])
+    setPendingAction(null)
+    setInput('')
+    setLoading(false)
+    setConfirmLoading(false)
+    if (recognitionRef.current) {
+      recognitionRef.current.abort()
+      setIsListening(false)
+    }
+  }
 
   const toggleListening = useCallback(() => {
     if (!SpeechRecognition) return
@@ -141,8 +156,10 @@ export function ChatPanel({ isOpen, onClose, onCommandExecuted }) {
     setLoading(true)
 
     try {
-      const data = await sendChatMessage(sessionId, text)
-      setMessages(prev => [...prev, { role: 'assistant', content: data.message }])
+      const data = await sendChatMessage(sessionId, text, deviceContext)
+      if (!data.pendingAction) {
+        setMessages(prev => [...prev, { role: 'assistant', content: data.message }])
+      }
       setPendingAction(data.pendingAction ?? null)
     } catch (err) {
       setMessages(prev => [
@@ -210,6 +227,20 @@ export function ChatPanel({ isOpen, onClose, onCommandExecuted }) {
             </svg>
             <span>Nexus AI</span>
           </div>
+          <div className="chat-panel-header-actions">
+          <button
+            type="button"
+            className="chat-panel-new"
+            onClick={handleNewChat}
+            disabled={messages.length <= 1 && !pendingAction}
+            aria-label="New chat"
+            title="New chat"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/>
+            </svg>
+          </button>
           <button
             type="button"
             className="chat-panel-close"
@@ -221,6 +252,7 @@ export function ChatPanel({ isOpen, onClose, onCommandExecuted }) {
               <line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </button>
+          </div>
         </div>
 
         <div className="chat-messages" aria-live="polite" aria-atomic="false">

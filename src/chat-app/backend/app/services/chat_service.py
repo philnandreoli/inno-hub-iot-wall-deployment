@@ -256,7 +256,7 @@ class ChatService:
     # Public API
     # ------------------------------------------------------------------
 
-    def chat(self, session_id: str, user_message: str) -> dict[str, Any]:
+    def chat(self, session_id: str, user_message: str, device_context: str | None = None) -> dict[str, Any]:
         """Process a user message and return ``{message, pending_action}``.
 
         If the model wants to execute a write command, ``pending_action`` is
@@ -266,7 +266,16 @@ class ChatService:
         Read commands execute immediately and ``pending_action`` is ``None``.
         """
         history = self._get_or_create_session(session_id)
-        history.append({"role": "user", "content": user_message})
+
+        # Inject device context so the model knows which device the operator
+        # is currently viewing.  This is a transient system hint — not stored
+        # permanently in the conversation.
+        if device_context:
+            content = user_message + f"\n\n[System context: the operator is currently viewing device '{device_context}'. Use this device if no other device is specified.]"
+        else:
+            content = user_message
+
+        history.append({"role": "user", "content": content})
         self._trim_history(history)
 
         response_message, pending_action = self._run_completion(session_id, history)

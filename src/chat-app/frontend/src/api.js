@@ -116,11 +116,13 @@ export async function fetchDeviceArcStatus(deviceName) {
   return res.json()
 }
 
-export async function sendChatMessage(sessionId, message) {
+export async function sendChatMessage(sessionId, message, deviceContext = null) {
+  const body = { sessionId, message }
+  if (deviceContext) body.deviceContext = deviceContext
   const res = await authFetch(`${BASE}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sessionId, message }),
+    body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`Chat request failed: ${res.status}`)
   return res.json()

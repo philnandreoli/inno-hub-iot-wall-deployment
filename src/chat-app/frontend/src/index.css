@@ -3463,6 +3463,13 @@ body::after {
   color: var(--cyan);
 }
 
+.chat-panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chat-panel-new,
 .chat-panel-close {
   background: none;
   border: none;
@@ -3476,8 +3483,14 @@ body::after {
   transition: color var(--transition-fast), background var(--transition-fast);
 }
 
+.chat-panel-new:hover,
 .chat-panel-close:hover {
   color: var(--text-primary);
+}
+
+.chat-panel-new:disabled {
+  opacity: 0.35;
+  cursor: default;
   background: var(--bg-surface);
 }
 
